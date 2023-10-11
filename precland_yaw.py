@@ -399,29 +399,9 @@ if ready_to_land==1:
     print("Precision landing completed...")
     
     
-    ############ infinite loop ###########
-    ######################################
     
        
-# while True:
-#     if ready_to_land==1:
-#         while vehicle.armed==True:
-#             lander()
-#     
-#         end_time = time.time()
-#         total_time = end_time - start_time
-#         total_time = abs(int(total_time))
-#         total_count = found_count + notfound_count
-#         freq_lander = total_count / total_time
-#         print("Total iterations: " + str(total_count))
-#         print("Total seconds: " + str(total_time))
-#         print("------------------")
-#         print("Lander function had a frequency of: " + str(freq_lander))
-#         print("------------------")
-#         print("Precision landing completed. Disarm the vehicle.")
 
-
-#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 #github token
 
 
            
