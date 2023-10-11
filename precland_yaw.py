@@ -53,7 +53,6 @@ script_mode = 1##1 for arm and takeoff, 2 for manual LOITER to GUIDED land
 ready_to_land=0 ##1 to trigger landing
 
 manualArm=False ##If True, arming from RC controller, If False, arming from this script.
-align_yaw = 0
 
 #########FUNCTIONS#################
 
@@ -210,29 +209,16 @@ def lander():
     ids=''
     corners, ids, rejected = aruco.detectMarkers(image=gray_img,dictionary=aruco_dict,parameters=parameters)
     altitude= vehicle.rangefinder.distance
-    alt_int=int(altitude)
-
+    align_yaw=None
     if vehicle.mode!='LAND':
         vehicle.mode=VehicleMode("LAND")
         while vehicle.mode!='LAND':
             print('WAITING FOR DRONE TO ENTER LAND MODE')
             time.sleep(1)
     try:
-        #align_yaw=True
         
         if ids is not None and ids[0] == id_to_find:
-            
-                #align_yaw=False
-            
 
-            ############# yaw from vision sensor ########
-            #vehicle.parameters['VISO_TYPE'] = 1
-            #vehicle.parameters['COMPASS_USE'] = 0
-            #vehicle.parameters['COMPASS_USE2'] = 0 
-            #vehicle.parameters['COMPASS_USE3'] = 0
-            #vehicle.parameters['EK3_SRC1_YAW'] = 6
-            #############################################            
-            
             ############ markers position estimation from opencv############
             ret = aruco.estimatePoseSingleMarkers(corners,marker_size,cameraMatrix=cameraMatrix,distCoeffs=cameraDistortion) #markers position 
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])   # rotation and translation vectors
@@ -301,6 +287,13 @@ def lander():
             print("Marker Heading:"+str(yaw)+ " MARKER POSITION: x=" +x+" y= "+y+" z="+z)
             #print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
             found_count = found_count+1
+		
+	    ################# yaw alignment message###########
+	    if align_yaw is None and found_count==1:
+		align_yaw=yaw
+		condition_yaw(align_yaw,1)
+	    ##################################################
+		
             print("")
         else:
             notfound_count = notfound_count+1
