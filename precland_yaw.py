@@ -290,8 +290,8 @@ def lander():
 		
 	    ################# yaw alignment message###########
 	    if align_yaw is None and found_count==1:
-			align_yaw=yaw
-			condition_yaw(align_yaw,1)
+		align_yaw=yaw
+		condition_yaw(align_yaw,1)
 	    ##################################################
 		
             print("")
