@@ -242,9 +242,6 @@ def lander():
             yaw_rad = np.arctan2(R[1,0], R[0,0])
             yaw_deg = np.degrees(yaw_rad) 
             yaw = round((yaw_deg+360)%360,2)  #%360 sets limit of the yaw scale to 0-360  # 'round' makes heading yaw upto 2 decimals
-            if alt_int==3:
-                condition_yaw(yaw,0)
-            desired_yaw = round(((yaw_rad+6.28)%6.28),2)
             ################################
             
             ########### Roll #########
