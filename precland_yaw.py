@@ -10,7 +10,7 @@ from pymavlink import mavutil
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-
+import subprocess
 #from imutils.video import WebcamVideoStream
 #import imutils
 #######VARIABLES####################
@@ -49,10 +49,11 @@ notfound_count=0
 first_run=0 #Used to set initial time of function to determine FPS
 start_time=0
 end_time=0
-script_mode = 1##1 for arm and takeoff, 2 for manual LOITER to GUIDED land 
+script_mode = 2##1 for arm and takeoff, 2 for manual LOITER to GUIDED land 
 ready_to_land=0 ##1 to trigger landing
 
 manualArm=False ##If True, arming from RC controller, If False, arming from this script.
+
 
 #########FUNCTIONS#################
 
@@ -127,7 +128,7 @@ def arm_and_takeoff(targetHeight):
 
     return None
 
-############## desired yaw function ##############  not working yet
+############## desired yaw function ##############  
 def condition_yaw(heading, relative=False):
     if relative:
         is_relative = 1 #yaw relative to direction of travel
@@ -209,16 +210,19 @@ def lander():
     ids=''
     corners, ids, rejected = aruco.detectMarkers(image=gray_img,dictionary=aruco_dict,parameters=parameters)
     altitude= vehicle.rangefinder.distance
-    align_yaw=None
+    alt_int=int(altitude)
+    align_yaw = None
+
     if vehicle.mode!='LAND':
         vehicle.mode=VehicleMode("LAND")
         while vehicle.mode!='LAND':
             print('WAITING FOR DRONE TO ENTER LAND MODE')
             time.sleep(1)
     try:
+         
         
         if ids is not None and ids[0] == id_to_find:
-
+             
             ############ markers position estimation from opencv############
             ret = aruco.estimatePoseSingleMarkers(corners,marker_size,cameraMatrix=cameraMatrix,distCoeffs=cameraDistortion) #markers position 
             (rvec, tvec) = (ret[0][0, 0, :], ret[1][0, 0, :])   # rotation and translation vectors
@@ -229,6 +233,7 @@ def lander():
             yaw_deg = np.degrees(yaw_rad) 
             yaw = round((yaw_deg+360)%360,2)  #%360 sets limit of the yaw scale to 0-360  # 'round' makes heading yaw upto 2 decimals
             ################################
+            
             
             ########### Roll #########
             roll_rad = np.arctan2(R[2,1], R[2,2])
@@ -287,14 +292,18 @@ def lander():
             print("Marker Heading:"+str(yaw)+ " MARKER POSITION: x=" +x+" y= "+y+" z="+z)
             #print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
             found_count = found_count+1
-		
-	    ################# yaw alignment message###########
-	    if align_yaw is None and found_count==1:
-		align_yaw=yaw
-		condition_yaw(align_yaw,1)
-	    ##################################################
-		
-            print("")
+            
+            ########### yaw alignment command ###########
+            
+            if align_yaw is None and found_count==1:   # it will take yaw value only once and put it in condition_yaw() function
+                align_yaw = yaw
+                condition_yaw(align_yaw,1)
+                print("yaw alignment",align_yaw)
+            else:
+                pass
+            #############################################
+            
+            print("Heading is aligned with marker")
         else:
             notfound_count = notfound_count+1
     except Exception as e:
@@ -375,7 +384,7 @@ if ready_to_land==1:
     
     while vehicle.armed==True:
         lander()
-    
+        
     end_time = time.time()
     total_time = end_time - start_time
     total_time = abs(int(total_time))
@@ -387,10 +396,8 @@ if ready_to_land==1:
     print("Lander function had a frequency of: " + str(freq_lander))
     print("------------------")
     print("Precision landing completed...")
+    subprocess.call['sudo','reboot']
     
-    
-    
-       
 
 
 
