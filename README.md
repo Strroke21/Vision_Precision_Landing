@@ -1,8 +1,8 @@
 # Vision Precision Landing using computer vision
 The vision precision landing and position alignment can be achieved using computer vision:
 
-** The camera distortion and camera matrix are calculated for picam v2. specify these file paths in the script.
-** if you are using a different camera the calibrate the camera using calibration script.
+- **The camera distortion and camera matrix are calculated for picam v2. specify these file paths in the script.
+- **if you are using a different camera the calibrate the camera using calibration script.
 
 The supported platform for this are:
 *Ardupilot
