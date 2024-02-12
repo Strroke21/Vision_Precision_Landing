@@ -5,8 +5,8 @@ The vision precision landing and position alignment can be achieved using comput
 - if you are using a different camera then calibrate the camera using calibration script.
 
 The supported platform for this are:
-*Ardupilot
-*PX4
+* Ardupilot
+* PX4
 
 Hardware Required:
 * Raspberry Pi4 with debian Bullseye
