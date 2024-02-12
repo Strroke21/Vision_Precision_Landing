@@ -77,3 +77,5 @@ The message fields that are used to provide target information as a position/qua
 | position_valid | uint8_t |  |  | Boolean indicating whether these position field values are populated with valid position target information (1: valid, 0: invalid). The default is '0', so that if the fields are not populated the default-zero values are not interpreted as a valid target position. |
 - **PX4 supports this form of positioning in [MAV_FRAME_LOCAL_NED](https://mavlink.io/en/messages/common.html#MAV_FRAME_LOCAL_NED) (only). The original (MAVLink 1) fields are ignored.**
 - **ArduPilot supports this form of positioning in [MAV_FRAME_BODY_FRD](https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD) (only). `position_valid` must be `1` and `distance` must be filled.**
+
+- https://www.notion.so/Flight-Test-Videos-f5deba2b17914647a4e8e80a2eb47a3f?pvs=4#c1f6d75afb5c48ad9d17fca7b9908c6b
