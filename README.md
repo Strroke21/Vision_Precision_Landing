@@ -45,3 +45,22 @@ Imagine a ray pointing from the camera's principal point to the target. The x an
 
 ![Untitled](https://github.com/Strroke21/Vision_Precision_Landing/assets/93963494/1631cdbd-516c-4914-a093-b522f280b94e)
 
+The sizes in x and y direction are analogous (`size_x`/`size_y`). They describe the angle between the smallest and biggest pixel in x/y direction respectively of the target as seen in the image.
+
+**(ArduPilot supports messages with these fields if position_valid is `0`.)**
+
+## **Target as Position/Quaternion (MAVLink 2 and later)**
+
+The message fields that are used to provide target information as a position/quaternion are shown below. Field meaning and use is clear from the description.
+
+| Field Name | Type | Units | Values | Description |
+| --- | --- | --- | --- | --- |
+| frame | uint8_t |  | https://mavlink.io/en/messages/common.html#MAV_FRAME | Coordinate frame used for following fields. |
+| x | float | m |  | X Position of the landing target in MAV_FRAME |
+| y | float | m |  | Y Position of the landing target in MAV_FRAME |
+| z | float | m |  | Z Position of the landing target in MAV_FRAME |
+| q | float[4] |  |  | Quaternion of landing target orientation (w, x, y, z order, zero-rotation is 1, 0, 0, 0) |
+| type | uint8_t |  | https://mavlink.io/en/messages/common.html#LANDING_TARGET_TYPE | Type of landing target |
+| position_valid | uint8_t |  |  | Boolean indicating whether these position field values are populated with valid position target information (1: valid, 0: invalid). The default is '0', so that if the fields are not populated the default-zero values are not interpreted as a valid target position. |
+- **PX4 supports this form of positioning in [MAV_FRAME_LOCAL_NED](https://mavlink.io/en/messages/common.html#MAV_FRAME_LOCAL_NED) (only). The original (MAVLink 1) fields are ignored.**
+- **ArduPilot supports this form of positioning in [MAV_FRAME_BODY_FRD](https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD) (only). `position_valid` must be `1` and `distance` must be filled.**
