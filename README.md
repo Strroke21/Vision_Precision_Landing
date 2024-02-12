@@ -78,4 +78,5 @@ The message fields that are used to provide target information as a position/qua
 - **PX4 supports this form of positioning in [MAV_FRAME_LOCAL_NED](https://mavlink.io/en/messages/common.html#MAV_FRAME_LOCAL_NED) (only). The original (MAVLink 1) fields are ignored.**
 - **ArduPilot supports this form of positioning in [MAV_FRAME_BODY_FRD](https://mavlink.io/en/messages/common.html#MAV_FRAME_BODY_FRD) (only). `position_valid` must be `1` and `distance` must be filled.**
 
-
+- The flight test video is given below:
+https://www.linkedin.com/posts/rishi191298_uav-drone-flighttest-activity-7119582846482075648-EFb-?utm_source=share&utm_medium=member_android
