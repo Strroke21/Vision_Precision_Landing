@@ -16,7 +16,13 @@ Aruco Marker:
 * Dictionary: Original Dictionary
 * ID: 72
 * Size: 16 cm
-
+# Install Dependencies
+>> pip3 install dronekit
+>>
+>> pip3 install pymavlink
+>>
+>> pip3 install opencv-python
+>>
 # camera calibration:
 if you are using a different camera then edit calibrate.py script as per your convinience where you want to save your camera instrinsics
 - the camera calibration can be done using 9x6 chessboard in the terminal using following command
