@@ -23,6 +23,8 @@ Aruco Marker:
 >>
 >> pip3 install opencv-python
 >>
+>> pip3 install argparse
+>> 
 # camera calibration:
 if you are using a different camera then edit calibrate.py script as per your convinience where you want to save your camera instrinsics
 - the camera calibration can be done using 9x6 chessboard in the terminal using following command
