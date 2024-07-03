@@ -141,7 +141,7 @@ def condition_yaw(heading, relative=False):
         0, #confirmation
         heading,    # param 1, yaw in degrees
         0,          # param 2, yaw speed deg/s
-        1,          # param 3, direction -1 ccw, 1 cw
+        0,          # param 3, direction -1 ccw, 1 cw, 0 for short turn
         is_relative, # param 4, relative offset 1, absolute angle 0
         0, 0, 0)    # param 5 ~ 7 not used
     # send command to vehicle
