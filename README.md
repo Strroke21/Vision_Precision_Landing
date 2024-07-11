@@ -34,6 +34,8 @@ if you are using a different camera then edit calibrate.py script as per your co
 - take 30 good images of chessboard for camera calibration.
 - ![image](https://github.com/Strroke21/Vision_Precision_Landing/assets/93963494/165b8a65-d5db-4406-b580-ecfc854aa831)
 
+# Running the program 
+>> python3 precland_rtl_yaw.py
 
 # Landing Target Protocol
 The landing target services/message communicates the position of one or more targets from MAVLink positioning system(s) to an autopilot. A multicopter or VTOL system can use the message to land with far greater positional accuracy than provided by conventional GPS (GPS provides position within several meters while a landing-target system might reasonably provide centimetre-level precision landing).
