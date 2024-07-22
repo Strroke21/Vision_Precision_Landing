@@ -17,14 +17,12 @@ Aruco Marker:
 * ID: 72
 * Size: 16 cm
 # Install Dependencies
->> pip3 install dronekit
->>
->> pip3 install pymavlink
->>
->> pip3 install opencv-python
->>
->> pip3 install argparse
->> 
+```
+pip3 install dronekit
+pip3 install pymavlink
+sudo apt install python3-opencv
+pip3 install argparse
+```
 # camera calibration:
 if you are using a different camera then edit calibrate.py script as per your convinience where you want to save your camera instrinsics
 - the camera calibration can be done using 9x6 chessboard in the terminal using following command
@@ -35,7 +33,7 @@ if you are using a different camera then edit calibrate.py script as per your co
 - ![image](https://github.com/Strroke21/Vision_Precision_Landing/assets/93963494/165b8a65-d5db-4406-b580-ecfc854aa831)
 
 # Running the program 
->> python3 precland_rtl_yaw.py
+```python3 precland_rtl_yaw.py ```
 
 # Landing Target Protocol
 The landing target services/message communicates the position of one or more targets from MAVLink positioning system(s) to an autopilot. A multicopter or VTOL system can use the message to land with far greater positional accuracy than provided by conventional GPS (GPS provides position within several meters while a landing-target system might reasonably provide centimetre-level precision landing).
