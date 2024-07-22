@@ -27,7 +27,7 @@ pip3 install argparse
 if you are using a different camera then edit calibrate.py script as per your convinience where you want to save your camera instrinsics
 - the camera calibration can be done using 9x6 chessboard in the terminal using following command
 - use the following resolution
-- >> calibrate.py  --mm 16 --width 640 --height 480
+```calibrate.py  --mm 16 --width 640 --height 480 ```
 - [Note: --mm is size of one block in chessboard and --width is horizontal resolution --height is vertical resolution]
 - take 30 good images of chessboard for camera calibration.
 - ![image](https://github.com/Strroke21/Vision_Precision_Landing/assets/93963494/165b8a65-d5db-4406-b580-ecfc854aa831)
