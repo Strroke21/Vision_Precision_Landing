@@ -28,6 +28,7 @@ if you are using a different camera then edit calibrate.py script as per your co
 - the camera calibration can be done using 9x6 chessboard in the terminal using following command
 - use the following resolution
 ```
+cd Vision_Precision_Landing
 python3 calibrate.py  --mm 16 --width 640 --height 480
 ```
 - [Note: --mm is size of one block in chessboard and --width is horizontal resolution --height is vertical resolution]
@@ -36,6 +37,7 @@ python3 calibrate.py  --mm 16 --width 640 --height 480
 
 # Running the program 
 ```
+cd Vision_Precision_Landing
 python3 precland_rtl_yaw.py
 ```
 
