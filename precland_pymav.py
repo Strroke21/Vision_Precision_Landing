@@ -210,7 +210,7 @@ elif script_mode ==2:
             break
         
         time.sleep(1)
-        print("Distance to Home:"+str(distance_to_home)+ " Altitude:" +str(altitude)+" Waiting to acquire Landing Point...")
+        print("Distance to Home:"+str(distance)+ " Altitude:" +str(altitude)+" Waiting to acquire Landing Point...")
         
        
        
