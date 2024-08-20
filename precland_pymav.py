@@ -6,7 +6,7 @@ import cv2
 import cv2.aruco as aruco
 import numpy as np
 import subprocess
-from droneControl import connect, flightMode, condition_yaw, VehicleMode, home_location, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter
+from droneControl import connect, flightMode, condition_yaw, VehicleMode, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter
 #from imutils.video import WebcamVideoStream
 #import imutils
 #######VARIABLES####################
@@ -177,15 +177,6 @@ set_parameter(vehicle,'PLND_ENABLED',1)
 set_parameter(vehicle,'PLND_TYPE',1)
 set_parameter(vehicle,'PLND_EST_TYPE',0)
 set_parameter(vehicle,'LAND_SPEED',30)
-
-
-
-############### first 3D fix location as home location (Static Home Location) ######### 
-home_loc = home_location(vehicle)
-home_lat= home_loc[0]
-home_lon= home_loc[1]
-###################################################
-
 
 if script_mode ==1:
     drone_takeoff(vehicle,takeoff_height)
