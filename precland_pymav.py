@@ -6,7 +6,7 @@ import cv2
 import cv2.aruco as aruco
 import numpy as np
 import subprocess
-from droneControl import connect, flightMode, condition_yaw, VehicleMode, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter
+from droneControl import connect, flightMode, condition_yaw, VehicleMode, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter, send_velocity_setpoint
 #from imutils.video import WebcamVideoStream
 #import imutils
 #######VARIABLES####################
@@ -181,7 +181,7 @@ set_parameter(vehicle,'LAND_SPEED',30)
 if script_mode ==1:
     drone_takeoff(vehicle,takeoff_height)
     print(str(time.time()))
-    #send_local_ned_velocity(velocity,velocity,0) ##Offset drone from target
+    send_velocity_setpoint(vehicle,0,0.5,0) ##Offset drone from target
     time.sleep(1)
     ready_to_land=1
 
