@@ -362,6 +362,18 @@ def set_parameter(vehicle, param_id, param_value, param_type=mavutil.mavlink.MAV
         param_type                    # MAVLink type (e.g., float, int)
     )
 
+def get_rangefinder_data(vehicle):
+    # Wait for a DISTANCE_SENSOR or RANGEFINDER message
+    msg = vehicle.recv_match(type=['DISTANCE_SENSOR', 'RANGEFINDER'], blocking=True)
+    if msg:
+        if msg.get_type() == 'DISTANCE_SENSOR':
+            distance = msg.current_distance/100  # in meters
+        elif msg.get_type() == 'RANGEFINDER':
+            distance = msg.distance  # in meters
+        return distance
+    else:
+        return None
+
 
     
 
