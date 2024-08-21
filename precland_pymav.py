@@ -6,7 +6,7 @@ import cv2
 import cv2.aruco as aruco
 import numpy as np
 import subprocess
-from droneControl import connect, flightMode, condition_yaw, VehicleMode, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter, send_velocity_setpoint
+from droneControl import connect, flightMode, condition_yaw, VehicleMode, drone_takeoff, get_local_position,distance_to_home, send_land_message, arm_status, set_parameter, send_velocity_setpoint, get_rangefinder_data
 #from imutils.video import WebcamVideoStream
 #import imutils
 #######VARIABLES####################
@@ -207,8 +207,11 @@ elif script_mode ==2:
        
 if ready_to_land==1:
     
-    while arm_status(vehicle) == 'armed':
+    while True:
+        altitude = get_rangefinder_data(vehicle)
         lander()
+        if altitude<=0.3:
+            break
         
     end_time = time.time()
     total_time = end_time - start_time
