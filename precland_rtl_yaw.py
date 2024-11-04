@@ -396,7 +396,7 @@ if ready_to_land==1:
     print("Lander function had a frequency of: " + str(freq_lander))
     print("------------------")
     print("Precision landing completed...")
-    subprocess.call['sudo','reboot']
+    subprocess.call(['sudo','reboot'])
     
 
 
