@@ -15,7 +15,8 @@ import subprocess
 ids_to_find = [72,75,99]
 marker_sizes = [26,14,8] #cm
 altitudes = [3,1]
-takeoff_height = 6
+takeoff_height = 10
+lander_height = 10
 
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
@@ -390,7 +391,10 @@ while True:
     altitude = vehicle.rangefinder.distance
         
     if (vehicle.mode=='RTL'):
-        if altitude <=10:
+        if altitude <= lander_height:
+            vehicle.mode = VehicleMode('LAND')
+            print("[Vehicle is now in LAND mode]")
+            time.sleep(1)
             main_lander()
 
         else:
