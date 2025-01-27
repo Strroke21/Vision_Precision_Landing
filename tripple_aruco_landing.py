@@ -344,9 +344,6 @@ def main_lander():
         else:
             print("Waiting to enter LAND mode...") 
 
-
-     
-
 ####################### MAIN DRONE PARAMETERS ###########################
 
 ########### main vehicle parameters #####
