@@ -9,7 +9,6 @@ from pymavlink import mavutil
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-import subprocess
 #######VARIABLES####################
 ##Aruco
 ids_to_find = [72,75,99]
@@ -39,7 +38,7 @@ calib_path="/home/pi/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
 ##
-
+home_radius = 10
 ##Counters and script triggers
 found_count=0
 notfound_count=0
@@ -388,7 +387,7 @@ while True:
     altitude = vehicle.rangefinder.distance
         
     if (vehicle.mode=='RTL'):
-        if altitude <= lander_height:
+        if (altitude <= lander_height) and (distance_to_home <= home_radius):
             vehicle.mode = VehicleMode('LAND')
             print("[Vehicle is now in LAND mode]")
             time.sleep(1)
