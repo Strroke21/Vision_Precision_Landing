@@ -12,7 +12,7 @@ import numpy as np
 #######VARIABLES####################
 ##Aruco
 ids_to_find = [72,75,99]
-marker_sizes = [26,14,8] #cm
+marker_sizes = [26,13,8] #cm
 altitudes = [3,1]
 takeoff_height = 10
 lander_height = 10
@@ -400,7 +400,7 @@ while True:
         main_lander()
     
     time.sleep(1)
-    print(f"[Distance to Home]: {distance_to_home:.2f} [Altitude]: {altitude:.2f} [Waiting to acquire Landing Point...]")
+    print(f"[Distance to Home]: {distance_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
 
 
