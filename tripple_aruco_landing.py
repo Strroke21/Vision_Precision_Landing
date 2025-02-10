@@ -319,13 +319,13 @@ def lander():
 
 def home_loc():
     while True:
-        
+
         if vehicle.armed==True:
             home_lat = vehicle.home_location.lat
             home_lon = vehicle.home_location.lon
             if (home_lat!=None) and (home_lon!=None):
                 wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
-                print("Home location set as: "+str(wp_home))
+                print(f"[Home location set as: {wp_home}]")
                 return wp_home
             else:
                 print("[Waiting for Home Location...]")
