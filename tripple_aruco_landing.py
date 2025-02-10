@@ -317,6 +317,23 @@ def lander():
         print('Target likely not found. Error: '+str(e))
         notfound_count=notfound_count+1
 
+def home_loc():
+    while True:
+        
+        if vehicle.armed==True:
+            home_lat = vehicle.home_location.lat
+            home_lon = vehicle.home_location.lon
+            if (home_lat!=None) and (home_lon!=None):
+                wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+                print("Home location set as: "+str(wp_home))
+                return wp_home
+            else:
+                print("[Waiting for Home Location...]")
+            
+        else:
+            print("[Waiting for vehicle to be Armed...]")
+    
+
 def main_lander():
     global counter, found_count
     while True:
@@ -354,9 +371,9 @@ vehicle.parameters['PLND_EST_TYPE'] = 0 # 0 for raw sensor, 1 for kalman filter 
 vehicle.parameters['LAND_SPEED'] = 30 ##Descent speed of 30cm/s
 
 ############### first 3D fix location as home location (Static Home Location) ######### 
-home_lat = vehicle.location.global_relative_frame.lat
-home_lon = vehicle.location.global_relative_frame.lon
-wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+#home_lat = vehicle.location.global_relative_frame.lat
+#home_lon = vehicle.location.global_relative_frame.lon
+wp_home = home_loc() #LocationGlobalRelative(home_lat,home_lon,takeoff_height)
 ###################################################
 
 while True:
