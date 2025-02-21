@@ -342,23 +342,23 @@ def main_lander():
     while True:
         if (vehicle.armed==True):
             lander()
-            if vehicle.armed!=True:
-                end_time = time.time()
-                total_time = end_time - start_time
-                total_time = abs(int(total_time))
-                total_count = found_count + notfound_count
-                freq_lander = total_count / total_time
-                print("Total iterations: " + str(total_count))
-                print("Total seconds: " + str(total_time))
-                print("------------------")
-                print("Lander function had a frequency of: " + str(freq_lander))
-                print("------------------")
-                controlServo(8,2000)
-                print("Battery UnLocked...")
-                counter = 0
-                found_count = 0
-                time.sleep(1)
-                break
+        elif (vehicle.armed!=True):
+            end_time = time.time()
+            total_time = end_time - start_time
+            total_time = abs(int(total_time))
+            total_count = found_count + notfound_count
+            freq_lander = total_count / total_time
+            print("Total iterations: " + str(total_count))
+            print("Total seconds: " + str(total_time))
+            print("------------------")
+            print("Lander function had a frequency of: " + str(freq_lander))
+            print("------------------")
+            controlServo(8,2000)
+            print("Battery UnLocked...")
+            counter = 0
+            found_count = 0
+            time.sleep(1)
+            break
 
         else:
             print("Waiting to enter LAND mode...") 
