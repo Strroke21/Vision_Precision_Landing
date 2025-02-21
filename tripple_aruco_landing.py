@@ -16,7 +16,6 @@ marker_sizes = [26,13,8] #cm
 altitudes = [3,1]
 takeoff_height = 10
 lander_height = 10
-home_coords = [0,0]
 
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
@@ -319,22 +318,15 @@ def lander():
         notfound_count=notfound_count+1
 
 def home_loc():
-    while True:
 
-        if vehicle.armed==True:
-            home_lat = vehicle.home_location.lat
-            home_lon = vehicle.home_location.lon
-            if (home_lat!=None) and (home_lon!=None):
-                home_coords[0] = home_lat
-                home_coords[1] = home_lon
-                wp_home = LocationGlobalRelative(home_coords[0],home_coords[1],takeoff_height)
-                print(f"[Home location set as: {wp_home}]")
-                return wp_home
-            else:
-                print("[Waiting for Home Location...]")
-            
-        else:
-            print("[Waiting for vehicle to be Armed...]")
+    if vehicle.armed==True:
+        home_lat = vehicle.home_location.lat
+        home_lon = vehicle.home_location.lon
+        if (home_lat!=None) and (home_lon!=None):
+            home_coords[0] = home_lat
+            home_coords[1] = home_lon
+
+    return home_coords[0],home_coords[1]
     
 
 def main_lander():
@@ -360,6 +352,13 @@ def main_lander():
             time.sleep(1)
             break
 
+def first_arm_loc_check():
+    while True:
+        if vehicle.armed==True:
+            print("[Home Location Set.]")
+            break
+        else:
+            print("[Waiting for vehicle to be armed to set Home Location...]")
 
 ####################### MAIN DRONE PARAMETERS ###########################
 
@@ -371,10 +370,13 @@ vehicle.parameters['PLND_TYPE'] = 1 ##1 for companion computer
 vehicle.parameters['PLND_EST_TYPE'] = 0 # 0 for raw sensor, 1 for kalman filter pos estimation
 vehicle.parameters['LAND_SPEED'] = 30 ##Descent speed of 30cm/s
 
+#storing first arm location as home location
+first_arm_loc_check()
+home_coords = [vehicle.location.global_relative_frame.lat, vehicle.location.global_relative_frame.lon]
 ############### first 3D fix location as home location (Static Home Location) ######### 
 #home_lat = vehicle.location.global_relative_frame.lat
 #home_lon = vehicle.location.global_relative_frame.lon
-wp_home = home_loc() #LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+#wp_home =  LocationGlobalRelative(home_lat,home_lon,takeoff_height)
 ###################################################
 
 while True:
@@ -388,10 +390,10 @@ while True:
                 break
             else:
                 print("[Waiting for vehicle to be armed...]")
+
     ########### home location coordinates (Dynamic) ########
-    #home_lat = vehicle.home_loaction.lat
-    #home_lon = vehicle.home_location.lon
-    #wp_home = home_loc() #LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+    home_lat, home_lon = home_loc() 
+    wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
     ##############################################
     
     ########### current location from drone #######
