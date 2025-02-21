@@ -360,8 +360,6 @@ def main_lander():
             time.sleep(1)
             break
 
-        else:
-            print("Waiting to enter LAND mode...") 
 
 ####################### MAIN DRONE PARAMETERS ###########################
 
