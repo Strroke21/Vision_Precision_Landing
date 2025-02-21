@@ -16,6 +16,7 @@ marker_sizes = [26,13,8] #cm
 altitudes = [3,1]
 takeoff_height = 10
 lander_height = 10
+home_coords = [0,0]
 
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
@@ -324,7 +325,9 @@ def home_loc():
             home_lat = vehicle.home_location.lat
             home_lon = vehicle.home_location.lon
             if (home_lat!=None) and (home_lon!=None):
-                wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+                home_coords[0] = home_lat
+                home_coords[1] = home_lon
+                wp_home = LocationGlobalRelative(home_coords[0],home_coords[1],takeoff_height)
                 print(f"[Home location set as: {wp_home}]")
                 return wp_home
             else:
@@ -383,14 +386,14 @@ while True:
         while True:
             if vehicle.armed==True:
                 controlServo(8,1000)
-                print("Battery Locked...")
+                print("[Battery Locked.]")
                 break
             else:
-                print("Waiting to arm the vehicle...")
+                print("[Waiting for vehicle to be armed...]")
     ########### home location coordinates (Dynamic) ########
     #home_lat = vehicle.home_loaction.lat
     #home_lon = vehicle.home_location.lon
-    #wp_home = LocationGlobalRelative(home_lat,home_lon,takeoff_height)
+    #wp_home = home_loc() #LocationGlobalRelative(home_lat,home_lon,takeoff_height)
     ##############################################
     
     ########### current location from drone #######
