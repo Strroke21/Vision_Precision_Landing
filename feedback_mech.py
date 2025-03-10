@@ -10,7 +10,15 @@ aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_6X6_250)
 parameters = aruco.DetectorParameters_create()
 ###########drone port##################
 
+counter = 0
+takeoff_height = 20
+
 fcu_address = 'udp:'
+
+wp1 = []
+wp2 = []
+wp3 = []
+wp4 = []
 
 def connect(connection_string):
 
@@ -113,8 +121,77 @@ def distance_to_home(vehicle):
     distance = R * c
     return distance #in meters
 
+def arm_status(vehicle):
+    heartbeat = vehicle.recv_match(type='HEARTBEAT', blocking=True)
+    if heartbeat:
+        armed = vehicle.motors_armed()
+        if armed==128:
+            return True
+        else:
+            return False
+        
+
+def goto_waypoint(vehicle,latitude, longitude, altitude):
+    msg = vehicle.mav.set_position_target_global_int_encode(
+        time_boot_ms=10,
+        target_system=vehicle.target_system,       # Target system (usually 1 for drones)
+        target_component=vehicle.target_component,    # Target component (usually 1 for drones)
+        coordinate_frame=mavutil.mavlink.MAV_FRAME_GLOBAL_RELATIVE_ALT,  # Frame of reference for the coordinate system
+        type_mask=0b0000111111111000,        # Bitmask to indicate which dimensions should be ignored (0b0000111111111000 means all ignored except position)
+        lat_int=int(latitude * 1e7),       # Latitude in degrees * 1e7 (to convert to integer)
+        lon_int=int(longitude * 1e7),      # Longitude in degrees * 1e7 (to convert to integer)
+        alt=altitude,
+        vx=0,                         # X velocity in m/s (not used)
+        vy=0,                         # Y velocity in m/s (not used)
+        vz=0,                         # Z velocity in m/s (not used)
+        afx=0, afy=0, afz=0,                   # Accel x, y, z (not used)
+        yaw=0, yaw_rate=0                       # Yaw and yaw rate (not used)
+    )
+    vehicle.mav.send(msg)
+
+def distance_to_wp(vehicle, wp_lat,wp_lon):
+    lat = get_global_position(vehicle)[0]
+    lon = get_global_position(vehicle)[1]
+    R = 6378137 #earth radius
+    dlat = radians(lat - wp_lat)
+    dlon = radians(lon - wp_lon)
+    a = sin(dlat / 2)**2 + cos(radians(lat)) * cos(radians(lat)) * sin(dlon / 2)**2
+    c = 2 * atan2(sqrt(a), sqrt(1 - a))
+    distance = R * c
+    return distance #in meters
+
+def wp_mission(vehicle,waypoint):
+    goto_waypoint(vehicle,waypoint[0],waypoint[1],waypoint[2])
+    while True:
+        dist = distance_to_wp(vehicle,waypoint[0],waypoint[1])
+        if dist <= 5:
+            break
+        print(f"Distance to WP: {dist} m")
+
+def start_mission():
+    VehicleMode(vehicle,"GUIDED")
+    print("Guided Mode activated...")
+    time.sleep(0.5)
+    arm(vehicle)
+    print("Drone armed...")
+    time.sleep(0.5)
+    drone_takeoff(vehicle, takeoff_height)
+    print(f"Taking-off to {takeoff_height} m...")
+    time.sleep(10)
+    wp_mission(vehicle,wp1)
+    print("Waypoint 1 reached...")
+    wp_mission(vehicle,wp2)
+    print("Waypoint 2 reached...")
+    wp_mission(vehicle,wp3)
+    print("Waypoint 3 reached...")
+    wp_mission(vehicle,wp4)
+    print("Waypoint 4 reached...")
+    VehicleMode(vehicle,"RTL")
+    print("Returning to launch...")
+
 
 def front_camera():
+    global counter
     cap=cv2.VideoCapture(4)
     cap.set(3,640)
     cap.set(4,480)
@@ -164,47 +241,49 @@ def front_camera():
             
             if (19<abs(z)<55) and (abs(x)<19) and (abs(pitch_deg)<20):
                 print("Drone Orientation on Drone port is valid...")
-                # VehicleMode(vehicle,"LOITER")
-                # print("Loiter Mode activated...")
+                VehicleMode(vehicle,"LOITER")
+                print("Loiter Mode activated...")
                 break
 
             else:
                 print("Drone Orientation on Drone port is invalid...")
                 print("Taking-off drone to correct orientation...")
-                # VehicleMode(vehicle,"GUIDED")
-                # print("Guided Mode activated...")
-                # time.sleep(1)
-                # arm(vehicle)
-                # time.sleep(0.5)
-                # drone_takeoff(vehicle, 5)
-                # print("Taking-off to 5m...")
-                # time.sleep(5)
-                # VehicleMode(vehicle,"LAND")
-                # print("Landing for re-orientation...")
-                # time.sleep(0.5)
+                VehicleMode(vehicle,"GUIDED")
+                print("Guided Mode activated...")
+                time.sleep(1)
+                arm(vehicle)
+                time.sleep(0.5)
+                drone_takeoff(vehicle, 5)
+                print("Taking-off to 5m...")
+                time.sleep(5)
+                VehicleMode(vehicle,"LAND")
+                print("Landing for re-orientation...")
+                time.sleep(0.5)
 
         else:
-            print("Marker not found")
+            counter+=1
+            print(f"Marker not found!!! Marker Not Found: {counter}")
 
 
-# vehicle = connect(fcu_address)
-# print("connected to drone...")
+
+vehicle = connect(fcu_address)
+print("connected to drone...")
+enable_data_stream(vehicle,stream_rate=100)
+print("Data stream enabled at 100Hz...")
+time.sleep(1)
+
+#start_mission()
 
 while True:
-    # mode = flightMode(vehicle)
-    # dist_to_home = distance_to_home(vehicle)
-    # print(f"Current Mode: {mode} Distance to Home: {dist_to_home} m.")
-    # if (mode=='LAND') and (dist_to_home<=5):
-    #     front_camera()
+    mode = flightMode(vehicle)
+    dist_to_home = distance_to_home(vehicle)
+    arming = arm_status(vehicle)
+    print(f"Current Mode: {mode} Distance to Home: {dist_to_home} m. Arming Status: {arming}")
+    if (mode=='LAND') and (arming==False):
+        front_camera()
 
-    # else:
-    #     print("Waiting for drone to reach home position and enter LAND mode...")
-    front_camera()
+    else:
+        print("Waiting for drone to reach home position and enter LAND mode...")
+
         
         
-
-
-
-
-
-
