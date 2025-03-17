@@ -423,4 +423,4 @@ while True:
     print(f"[Distance to Home]: {distance_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
 
-
+##################### END OF SCRIPT ############################
