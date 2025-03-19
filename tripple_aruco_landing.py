@@ -17,6 +17,8 @@ altitudes = [3,1]
 takeoff_height = 10
 lander_height = 10
 
+marker_scan_not_found = 0
+
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
 
@@ -26,7 +28,6 @@ parameters = aruco.DetectorParameters_create()
 ##Camera
 horizontal_res = 640
 vertical_res = 480
-#cap = WebcamVideoStream(src=0, width=horizontal_res, height=vertical_res).start()
 cap=cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, horizontal_res)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, vertical_res)
@@ -172,6 +173,23 @@ def send_local_ned_velocity(vx, vy, vz):
 		0, 0)
 	vehicle.send_mavlink(msg)
 	vehicle.flush()
+
+
+def send_position_setpoint(pos_x, pos_y, pos_z):
+
+    # Send MAVLink command to send position
+    msg = vehicle.message_factory.set_position_target_local_ned_encode(
+        0, 
+        0, 0,
+        mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED,  # frame
+        0b0000111111111000,        # type_mask (only for postion)
+        pos_x, pos_y, pos_z,   # position 
+        0, 0, 0,                 # velocity in m/s (not used)
+        0, 0, 0,                    # acceleration (not used)
+        0, 0                        # yaw, yaw_rate (not used)
+    )
+    vehicle.send_mavlink(msg)
+    vehicle.flush()
   
   
 #################### Landing Target Function ##############  
@@ -204,6 +222,55 @@ def controlServo(servo_number,pwm_value):
             0,
             0)
     vehicle.send_mavlink(msg)
+
+def aruco_marker_scanner():
+    while True:
+        ret, frame = cap.read()
+        frame = cv2.resize(frame,(horizontal_res,vertical_res))
+        frame_np = np.array(frame)    #array transformation 
+        gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)   #grey image conversion
+        ids=''
+        corners, ids, rejected = aruco.detectMarkers(image=gray_img,dictionary=aruco_dict,parameters=parameters)
+        if ids is not None:
+            ids[0] = ids_to_find
+            print(f"Marker ID Found: {ids[0]}")
+            vehicle.mode = VehicleMode('LAND')
+            time.sleep(0.1)
+            break
+        else:
+            print("No marker found. Scanning...")
+            marker_scan_not_found+=1
+            if marker_scan_not_found==5:
+                vehicle.mode = VehicleMode('GUIDED')
+                time.sleep(0.1)
+
+            if marker_scan_not_found==10:
+                send_position_setpoint(-2,0,0)
+                print("Moving forward to find marker...")
+                time.sleep(1)
+            
+            if marker_scan_not_found==15:
+                send_position_setpoint(2,2,0)
+                print("Moving right to find marker...")
+                time.sleep(1)
+
+            if marker_scan_not_found==20:
+                send_position_setpoint(0,-4,0)
+                print("Moving left to find marker...")
+
+            if marker_scan_not_found==25:
+                send_position_setpoint(2,2,0)
+                print("Moving forward to find marker...")
+                time.sleep(1)
+
+            if marker_scan_not_found==30:
+                print("No marker found")
+                vehicle.mode = VehicleMode('LAND')
+                print("Vehicle now in LAND mode")
+                time.sleep(0.1)
+                break
+        print("Scanning for marker...")
+
 
 def lander():
     global first_run,notfound_count,found_count,marker_size,start_time
@@ -330,7 +397,7 @@ def home_loc():
     
 
 def main_lander():
-    global counter, found_count
+    global counter
     while True:
         if (vehicle.armed==True):
             lander()
@@ -349,6 +416,7 @@ def main_lander():
             print("Battery UnLocked...")
             counter = 0
             found_count = 0
+            notfound_count = 0
             time.sleep(1)
             break
 
@@ -408,6 +476,7 @@ while True:
         
     if (vehicle.mode=='RTL'):
         if (altitude <= lander_height) and (distance_to_home <= home_radius):
+            aruco_marker_scanner()
             vehicle.mode = VehicleMode('LAND')
             print("[Vehicle is now in LAND mode]")
             time.sleep(1)
