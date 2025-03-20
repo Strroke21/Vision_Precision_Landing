@@ -242,28 +242,29 @@ def aruco_marker_scanner():
             marker_scan_not_found+=1
             if marker_scan_not_found==5:
                 vehicle.mode = VehicleMode('GUIDED')
+                print("Vehicle now in GUIDED mode")
                 time.sleep(0.1)
 
-            if marker_scan_not_found==10:
+            if marker_scan_not_found==5:
                 send_position_setpoint(-2,0,0)
                 print("Moving forward to find marker...")
                 time.sleep(1)
             
-            if marker_scan_not_found==15:
+            if marker_scan_not_found==10:
                 send_position_setpoint(2,2,0)
                 print("Moving right to find marker...")
                 time.sleep(1)
 
-            if marker_scan_not_found==20:
+            if marker_scan_not_found==15:
                 send_position_setpoint(0,-4,0)
                 print("Moving left to find marker...")
 
-            if marker_scan_not_found==25:
+            if marker_scan_not_found==20:
                 send_position_setpoint(2,2,0)
                 print("Moving forward to find marker...")
                 time.sleep(1)
 
-            if marker_scan_not_found==30:
+            if marker_scan_not_found==25:
                 print("No marker found")
                 vehicle.mode = VehicleMode('LAND')
                 print("Vehicle now in LAND mode")
@@ -328,10 +329,8 @@ def lander():
             pitch = round((pitch_deg+360)%360,2)
             ##########################
             
-            ########## marker position calculation ######
-            x = '{:.2f}'.format(tvec[0])
-            y = '{:.2f}'.format(tvec[1])
-            z = '{:.2f}'.format(tvec[2])
+            ########## marker position extraction ######
+            x, y, z = tvec[0], tvec[1], tvec[2]
             #############################################
             
             ############ x,y angle calculation in radians #########
@@ -363,8 +362,8 @@ def lander():
                 pass
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))
             print("FOUND COUNT: "+str(found_count)+" NOTFOUND COUNT: "+str(notfound_count))
-            print("Marker Heading:"+str(yaw)+ " MARKER POSITION: x=" +x+" y= "+y+" z="+z)
-            #print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
+            print(f" MARKER POSITION (cartesian): x={x:.2f} y={y:2f} z={z:.2f}")
+            print(" MARKER POSITION (angular): Yaw=" +str(yaw)+ " Roll=" +str(roll)+ " Pitch="+str(pitch))
             found_count = found_count+1
             
             ########### yaw alignment command ###########
@@ -413,7 +412,7 @@ def main_lander():
             print("Lander function had a frequency of: " + str(freq_lander))
             print("------------------")
             controlServo(8,2000)
-            print("Battery UnLocked...")
+            print("[Battery UnLocked.]")
             counter = 0
             found_count = 0
             notfound_count = 0
@@ -465,8 +464,8 @@ while True:
     ##############################################
     
     ########### current location from drone #######
-    lat_current =vehicle.location.global_relative_frame.lat
-    lon_current=vehicle.location.global_relative_frame.lon
+    lat_current = vehicle.location.global_relative_frame.lat
+    lon_current = vehicle.location.global_relative_frame.lon
     current_altitude = vehicle.location.global_relative_frame.alt
     
     ######### distance_to_home calculation ########
