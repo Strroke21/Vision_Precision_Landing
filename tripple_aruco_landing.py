@@ -13,7 +13,7 @@ import numpy as np
 ##Aruco
 ids_to_find = [72,75,99]
 marker_sizes = [26,13,8] #cm
-altitudes = [3,1]
+altitudes = [4,1.5]
 takeoff_height = 10
 lander_height = 10
 
@@ -223,54 +223,30 @@ def controlServo(servo_number,pwm_value):
             0)
     vehicle.send_mavlink(msg)
 
-def aruco_marker_scanner():
-    while True:
-        ret, frame = cap.read()
-        frame = cv2.resize(frame,(horizontal_res,vertical_res))
-        frame_np = np.array(frame)    #array transformation 
-        gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)   #grey image conversion
-        ids=''
-        corners, ids, rejected = aruco.detectMarkers(image=gray_img,dictionary=aruco_dict,parameters=parameters)
-        if ids is not None:
-            ids[0] = ids_to_find
-            print(f"Marker ID Found: {ids[0]}")
-            vehicle.mode = VehicleMode('LAND')
-            time.sleep(0.1)
-            break
-        else:
-            print("No marker found. Scanning...")
-            marker_scan_not_found+=1
-            if marker_scan_not_found==5:
-                vehicle.mode = VehicleMode('GUIDED')
-                print("Vehicle now in GUIDED mode")
-                time.sleep(0.1)
+def geo_distance_components(lat1,lon1,lat2,lon2):
+    # Earth's radius in meters
+    R = 6378137
 
-            if marker_scan_not_found==5:
-                send_position_setpoint(-2,0,0)
-                print("Moving forward to find marker...")
-                time.sleep(1)
-            
-            if marker_scan_not_found==10:
-                send_position_setpoint(2,2,0)
-                print("Moving right to find marker...")
-                time.sleep(1)
+    # Convert degrees to radians
+    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
 
-            if marker_scan_not_found==15:
-                send_position_setpoint(0,-4,0)
-                print("Moving left to find marker...")
+    # Calculate differences
+    delta_lat = lat2 - lat1
+    delta_lon = lon2 - lon1
 
-            if marker_scan_not_found==20:
-                send_position_setpoint(2,2,0)
-                print("Moving forward to find marker...")
-                time.sleep(1)
+    # Normalize delta_lon to [-π, π]
+    delta_lon = (delta_lon + math.pi) % (2 * math.pi) - math.pi
 
-            if marker_scan_not_found==25:
-                print("No marker found")
-                vehicle.mode = VehicleMode('LAND')
-                print("Vehicle now in LAND mode")
-                time.sleep(0.1)
-                break
-        print("Scanning for marker...")
+    # Debugging intermediate values
+    mean_lat = (lat1 + lat2) / 2
+    # North-South component (y): R * delta_lat
+    y = R * delta_lat
+
+    # East-West component (x): R * delta_lon * cos(mean_latitude)
+    x = R * delta_lon * math.cos(mean_lat)
+
+    return x,y
+
 
 
 def lander():
@@ -329,10 +305,10 @@ def lander():
             pitch = round((pitch_deg+360)%360,2)
             ##########################
             
-            ########## marker position extraction ######
+            ########## marker position extraction ########
             x, y, z = tvec[0], tvec[1], tvec[2]
-            #############################################
-            
+            ##############################################
+
             ############ x,y angle calculation in radians #########
             y_sum = 0
             x_sum = 0
@@ -383,6 +359,8 @@ def lander():
         print('Target likely not found. Error: '+str(e))
         notfound_count=notfound_count+1
 
+
+
 def home_loc():
 
     if vehicle.armed==True:
@@ -396,7 +374,7 @@ def home_loc():
     
 
 def main_lander():
-    global counter
+    global counter, found_count, notfound_count, start_time
     while True:
         if (vehicle.armed==True):
             lander()
@@ -440,11 +418,7 @@ vehicle.parameters['LAND_SPEED'] = 30 ##Descent speed of 30cm/s
 #storing first arm location as home location
 first_arm_loc_check()
 home_coords = [vehicle.location.global_relative_frame.lat, vehicle.location.global_relative_frame.lon]
-############### first 3D fix location as home location (Static Home Location) ######### 
-#home_lat = vehicle.location.global_relative_frame.lat
-#home_lon = vehicle.location.global_relative_frame.lon
-#wp_home =  LocationGlobalRelative(home_lat,home_lon,takeoff_height)
-###################################################
+
 
 while True:
     
@@ -475,7 +449,6 @@ while True:
         
     if (vehicle.mode=='RTL'):
         if (altitude <= lander_height) and (distance_to_home <= home_radius):
-            aruco_marker_scanner()
             vehicle.mode = VehicleMode('LAND')
             print("[Vehicle is now in LAND mode]")
             time.sleep(1)
