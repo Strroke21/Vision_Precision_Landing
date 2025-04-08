@@ -342,7 +342,7 @@ def lander():
 
 
 def home_loc():
-
+    global home_coords
     if vehicle.armed==True:
         home_lat = vehicle.home_location.lat
         home_lon = vehicle.home_location.lon
