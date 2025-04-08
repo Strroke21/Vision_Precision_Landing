@@ -194,7 +194,7 @@ def send_position_setpoint(pos_x, pos_y, pos_z):
   
 #################### Landing Target Function ##############  
   
-def send_land_message(x,y):
+def send_land_message(x,y,pos_x,pos_y):
     msg = vehicle.message_factory.landing_target_encode(
         0,
         0,
@@ -203,7 +203,10 @@ def send_land_message(x,y):
         y,
         0,
         0,
-        0,)
+        0,
+        pos_x, #position x of target (m)
+        pos_y, #position y of target (m)
+        )
     vehicle.send_mavlink(msg)
     vehicle.flush()
 
@@ -222,32 +225,7 @@ def controlServo(servo_number,pwm_value):
             0,
             0)
     vehicle.send_mavlink(msg)
-
-def geo_distance_components(lat1,lon1,lat2,lon2):
-    # Earth's radius in meters
-    R = 6378137
-
-    # Convert degrees to radians
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-
-    # Calculate differences
-    delta_lat = lat2 - lat1
-    delta_lon = lon2 - lon1
-
-    # Normalize delta_lon to [-π, π]
-    delta_lon = (delta_lon + math.pi) % (2 * math.pi) - math.pi
-
-    # Debugging intermediate values
-    mean_lat = (lat1 + lat2) / 2
-    # North-South component (y): R * delta_lat
-    y = R * delta_lat
-
-    # East-West component (x): R * delta_lon * cos(mean_latitude)
-    x = R * delta_lon * math.cos(mean_lat)
-
-    return x,y
-
-
+    vehicle.flush()
 
 def lander():
     global first_run,notfound_count,found_count,marker_size,start_time
@@ -307,6 +285,8 @@ def lander():
             
             ########## marker position extraction ########
             x, y, z = tvec[0], tvec[1], tvec[2]
+            pos_x = x/100 #postion x of target (m)
+            pos_y = y/100 #postion y of target (m)
             ##############################################
 
             ############ x,y angle calculation in radians #########
@@ -332,9 +312,9 @@ def lander():
                 print("------------------------")
                 print("Vehicle now in LAND mode")
                 print("------------------------")
-                send_land_message(x_ang,y_ang)
+                send_land_message(x_ang,y_ang,pos_x,pos_y)
             else:
-                send_land_message(x_ang,y_ang)
+                send_land_message(x_ang,y_ang,pos_x,pos_y)
                 pass
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))
             print("FOUND COUNT: "+str(found_count)+" NOTFOUND COUNT: "+str(notfound_count))
@@ -462,6 +442,5 @@ while True:
     
     time.sleep(1)
     print(f"[Distance to Home]: {distance_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
-
 
 ##################### END OF SCRIPT ############################
