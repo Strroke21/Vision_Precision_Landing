@@ -410,8 +410,6 @@ def main_lander():
             print("------------------")
             print("Lander function had a frequency of: " + str(freq_lander))
             print("------------------")
-            # controlServo(8,2000)
-            # print("[Battery UnLocked.]")
             counter = 0
             found_count = 0
             notfound_count = 0
@@ -443,17 +441,6 @@ first_arm_loc_check()
 home_coords = [home_location(vehicle)[0], home_location(vehicle)[1]]
 
 while True:
-    counter+=1
-    if counter==1:
-        while True:
-            arm_c = arm_status(vehicle)
-            if arm_c==True:
-                # controlServo(8,1000)
-                # print("[Battery Locked.]")
-                break
-            else:
-                print("[Waiting for vehicle to be armed...]")
-
     ########### home location coordinates (Dynamic) ########
 
     altitude = get_rangefinder_data(vehicle)
@@ -475,6 +462,5 @@ while True:
     
     time.sleep(1)
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
-
 
 ##################### END OF SCRIPT ############################
