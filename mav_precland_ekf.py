@@ -9,6 +9,7 @@ import numpy as np
 from math import radians, cos, sin, sqrt, atan2
 
 #######VARIABLES####################
+fcu_addr = '/dev/ttyACM0'
 ##Aruco
 ids_to_find = [72,75,99]
 marker_sizes = [26,13,8] #cm
@@ -432,7 +433,7 @@ def first_arm_loc_check():
 ####################### MAIN DRONE PARAMETERS ###########################
 
 ########### main vehicle parameters #####
-vehicle = connect()
+vehicle = connect(fcu_addr)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
 set_parameter('PLND_ENABLED', 1)
 set_parameter('PLND_TYPE',1) ##1 for companion computer
