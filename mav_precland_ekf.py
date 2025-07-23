@@ -369,11 +369,12 @@ def home_location(vehicle):
         
 def arm_status(vehicle):
     global arm_status_condition
-    heartbeat = vehicle.recv_match(type='HEARTBEAT', blocking=False)
-    if heartbeat:
-        armed = vehicle.motors_armed()
-        if armed==128:
-            arm_status_condition = True
+    vehicle.recv_match(type='HEARTBEAT', blocking=False)
+    armed = vehicle.motors_armed()
+    if armed==128:
+        arm_status_condition = True
+    elif armed==0:
+        arm_status_condition = False
     return arm_status_condition
 
 def home_loc():
@@ -387,13 +388,10 @@ def home_loc():
 
 def flightMode(vehicle):
     global mode
-    while True:
-        msg = vehicle.recv_match(type='HEARTBEAT', blocking=False)
-        # Wait for a 'HEARTBEAT' message
-        if msg is not None:
-            mode = vehicle.flightmode
+    vehicle.recv_match(type='HEARTBEAT', blocking=False)
+    mode = vehicle.flightmode
 
-        return mode
+    return mode
     
 def main_lander():
     global counter, found_count, notfound_count, start_time
