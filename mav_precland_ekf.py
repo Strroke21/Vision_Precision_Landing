@@ -1,7 +1,6 @@
 ###########DEPENDENCIES################
 import time
 import math
-import argparse
 from pymavlink import mavutil
 import cv2
 import cv2.aruco as aruco
@@ -230,6 +229,14 @@ def kalman_filter(prev_state, prev_cov, x_gps, y_gps, x_cam, y_cam):
 
     return updated_state, updated_cov
 
+def enable_data_stream(vehicle,stream_rate):
+
+    vehicle.wait_heartbeat()
+    vehicle.mav.request_data_stream_send(
+    vehicle.target_system, 
+    vehicle.target_component,
+    mavutil.mavlink.MAV_DATA_STREAM_ALL,
+    stream_rate,1)
 
 def lander():
     global first_run,notfound_count,found_count,marker_size,start_time,prev_state,prev_cov
@@ -289,23 +296,6 @@ def lander():
             
             ########## marker position extraction ######
             x, y, z = tvec[0], tvec[1], tvec[2]
-            #############################################
-
-            ########### (drone current location) #########
-            dronelat = get_global_position(vehicle)[0]
-            dronelon = get_global_position(vehicle)[1]
-            ##############################################
-
-            ########### (drone port gps location) ########
-            dport_lat, dport_lon = home_loc()
-            ##############################################
-            x_gps, y_gps = geo_distance_components(dronelat, dronelon, dport_lat, dport_lon)
-            ############## fused state ###################
-            updated_state, updated_cov = kalman_filter(prev_state,prev_cov,x_gps,y_gps,x,y)
-            x_fuse = (updated_state[0, 0])/100 #fused x position (m)
-            y_fuse = (updated_state[1, 0])/100 #fused y position (m)
-            prev_cov = updated_cov
-            prev_state = updated_state
             ##############################################
 
             ############ x,y angle calculation in radians #########
@@ -331,16 +321,14 @@ def lander():
                 print("------------------------")
                 print("Vehicle now in LAND mode")
                 print("------------------------")
-                send_land_message(x_ang,y_ang,x_fuse,y_fuse)
+                send_land_message(x_ang,y_ang,x_sum,y_sum)
             else:
-                send_land_message(x_ang,y_ang,x_fuse,y_fuse)
+                send_land_message(x_ang,y_ang,x_sum,y_sum)
                 pass
 
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))
             print("FOUND COUNT: "+str(found_count)+" NOTFOUND COUNT: "+str(notfound_count))
             print(f" MARKER POSITION (cartesian): x={x:.2f} y={y:2f} z={z:.2f}")
-            #print(" MARKER POSITION (angular): Yaw=" +str(yaw)+ " Roll=" +str(roll)+ " Pitch="+str(pitch))
-            print(f"ekf_X={x_fuse:.2f} ekf_Y={y_fuse:.2f} ekf_variance={updated_cov}")
             found_count = found_count+1
             
             ########### yaw alignment command ###########
@@ -366,6 +354,7 @@ def home_location(vehicle):
         msg=vehicle.recv_match(type='HOME_POSITION',blocking=True)
         if msg is not None:
             return [msg.latitude * 1e-7, msg.longitude * 1e-7,msg.altitude * 1e-3]
+        print("waiting for home location")
         
 def arm_status(vehicle):
     global arm_status_condition
@@ -383,8 +372,9 @@ def home_loc():
     if arm_c==True:
         home_coords = home_location(vehicle)
         print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
-
-    return home_coords[0],home_coords[1]
+        return home_coords[0],home_coords[1]
+    else:
+        print("waiting to be armed")
 
 def flightMode(vehicle):
     global mode
@@ -430,6 +420,7 @@ def first_arm_loc_check():
 
 ########### main vehicle parameters #####
 vehicle = connect(fcu_addr)
+enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
 set_parameter('PLND_ENABLED', 1)
 set_parameter('PLND_TYPE',1) ##1 for companion computer
@@ -460,7 +451,10 @@ while True:
     elif (mode=='LAND' and arm_c==True):
         main_lander()
     
-    time.sleep(1)
+    elif (mode=='AUTO') and (altitude<=lander_height):
+        main_lander()
+    
+    time.sleep(0.5)
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
 ##################### END OF SCRIPT ############################
