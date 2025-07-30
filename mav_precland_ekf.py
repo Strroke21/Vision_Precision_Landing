@@ -345,13 +345,14 @@ def lander():
         print('Target likely not found. Error: '+str(e))
         notfound_count=notfound_count+1
 
-
 def home_location(vehicle):
     while True:
-        msg=vehicle.recv_match(type='HOME_POSITION',blocking=True)
+        msg=vehicle.recv_match(type='HOME_POSITION',blocking=False)
         if msg is not None:
             return [msg.latitude * 1e-7, msg.longitude * 1e-7,msg.altitude * 1e-3]
-        print("waiting for home location")
+        else:
+            print("setting first arm location as home location...")
+            return get_global_position(vehicle)[0], get_global_position(vehicle)[1]
         
 def arm_status(vehicle):
     global arm_status_condition
@@ -362,16 +363,6 @@ def arm_status(vehicle):
     elif armed==0:
         arm_status_condition = False
     return arm_status_condition
-
-def home_loc():
-    global home_coords
-    arm_c = arm_status(vehicle)
-    if arm_c==True:
-        home_coords = home_location(vehicle)
-        print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
-        return home_coords[0],home_coords[1]
-    else:
-        print("waiting to be armed")
 
 def flightMode(vehicle):
     global mode
@@ -426,7 +417,7 @@ set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 
 #storing first arm location as home location
 first_arm_loc_check()
-home_coords = [home_location(vehicle)[0], home_location(vehicle)[1]]
+home_coords = home_location(vehicle)
 print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
 
 while True:
