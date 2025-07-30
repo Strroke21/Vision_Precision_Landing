@@ -426,6 +426,7 @@ while True:
     altitude = get_rangefinder_data(vehicle)
     dist_to_home = distance_to_home(vehicle,home_coords)
     mode = flightMode(vehicle)
+    arm_c = arm_status(vehicle)
     if (mode=='RTL'):
         if (altitude <= lander_height) and (dist_to_home <= home_radius):
             VehicleMode(vehicle,'LAND')
@@ -436,7 +437,7 @@ while True:
         else:
             print("[Waiting to reach home location for landing...]")
 
-    elif (mode=='LAND'):
+    elif (mode=='LAND' and arm_c==True):
         main_lander()
     
     elif (mode=='AUTO') and (altitude<=lander_height):
