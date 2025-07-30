@@ -151,28 +151,25 @@ def get_global_position(vehicle):
             time_boot_ms = msg.time_boot_ms
             return [lat,lon,alt,vx,vy,vz,relative_alt,hdg, time_boot_ms]
 
-def distance_to_home(vehicle):
-
+def distance_to_home(vehicle,home_coords):
     while True:
-        msg1=home_location(vehicle)
-        if msg1 is not None:
-            home_lat=msg1[0]
-            home_lon=msg1[1]
-            #home_alt=msg1.altitude * 1e-3
+        home_lat = home_coords[0]
+        home_lon = home_coords[1]
+        #home_alt=msg1.altitude * 1e-3
 
-            msg2 = get_global_position(vehicle)
-            
-            current_lat = msg2[0] # lat
-            current_lon = msg2[1] # lon
-            #current_alt = msg2[2] # alt
-            
-            R = 6371000  # Earth radius in meters
-            dlat = radians(current_lat - home_lat)
-            dlon = radians(current_lon - home_lon)
-            a = sin(dlat / 2)**2 + cos(radians(home_lat)) * cos(radians(current_lat)) * sin(dlon / 2)**2
-            c = 2 * atan2(sqrt(a), sqrt(1 - a))
-            distance = R * c
-            return distance #in meters
+        msg2 = get_global_position(vehicle)
+        
+        current_lat = msg2[0] # lat
+        current_lon = msg2[1] # lon
+        #current_alt = msg2[2] # alt
+        
+        R = 6371000  # Earth radius in meters
+        dlat = radians(current_lat - home_lat)
+        dlon = radians(current_lon - home_lon)
+        a = sin(dlat / 2)**2 + cos(radians(home_lat)) * cos(radians(current_lat)) * sin(dlon / 2)**2
+        c = 2 * atan2(sqrt(a), sqrt(1 - a))
+        distance = R * c
+        return distance #in meters
 
 def geo_distance_components(lat1,lon1,lat2,lon2):
     # Earth's radius in meters
@@ -430,13 +427,13 @@ set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 #storing first arm location as home location
 first_arm_loc_check()
 home_coords = [home_location(vehicle)[0], home_location(vehicle)[1]]
+print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
 
 while True:
     ########### home location coordinates (Dynamic) ########
 
     altitude = get_rangefinder_data(vehicle)
-    dist_to_home = distance_to_home(vehicle)
-    arm_c = arm_status(vehicle)
+    dist_to_home = distance_to_home(vehicle,home_coords)
     mode = flightMode(vehicle)
     if (mode=='RTL'):
         if (altitude <= lander_height) and (dist_to_home <= home_radius):
@@ -448,7 +445,7 @@ while True:
         else:
             print("[Waiting to reach home location for landing...]")
 
-    elif (mode=='LAND' and arm_c==True):
+    elif (mode=='LAND'):
         main_lander()
     
     elif (mode=='AUTO') and (altitude<=lander_height):
