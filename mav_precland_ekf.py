@@ -422,10 +422,10 @@ def first_arm_loc_check():
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
-set_parameter('PLND_ENABLED', 1)
-set_parameter('PLND_TYPE',1) ##1 for companion computer
-set_parameter('PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
-set_parameter('LAND_SPEED',30) ##Descent speed of 30cm/s
+set_parameter(vehicle,'PLND_ENABLED', 1)
+set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
+set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
+set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 
 #storing first arm location as home location
 first_arm_loc_check()
