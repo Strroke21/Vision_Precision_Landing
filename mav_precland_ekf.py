@@ -34,7 +34,7 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, vertical_res)
 horizontal_fov = 62.2 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
 vertical_fov = 48.8 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
 
-calib_path="/home/pi/video2calibration/calibrationFiles/"
+calib_path="/home/deathstroke/Desktop/Vision_Precision_Landing/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
 ##
