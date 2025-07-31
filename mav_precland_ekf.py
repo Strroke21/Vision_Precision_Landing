@@ -378,6 +378,7 @@ def main_lander():
         if (arm_c==True):
             lander()
         elif (arm_c==False):
+            time.sleep(1) #avoid division by zero
             end_time = time.time()
             total_time = end_time - start_time
             total_time = abs(int(total_time))
@@ -391,7 +392,6 @@ def main_lander():
             counter = 0
             found_count = 0
             notfound_count = 0
-            time.sleep(1)
             break
 
 
