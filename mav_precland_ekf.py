@@ -439,10 +439,7 @@ while True:
     elif (mode=='LAND' and arm_c==True):
         main_lander()
     
-    elif (mode=='AUTO') and (altitude<=lander_height):
-        main_lander()
-    
-    time.sleep(0.5)
+    time.sleep(1)
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
 ##################### END OF SCRIPT ############################
