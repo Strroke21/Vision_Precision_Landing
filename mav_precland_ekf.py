@@ -383,7 +383,7 @@ while True:
     elif (mode=='LAND' and arm_c==True):
         main_lander()
     
-    time.sleep(1)
+    time.sleep(0.1)
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
 ####################### END OF SCRIPT ############################
