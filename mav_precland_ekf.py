@@ -172,61 +172,6 @@ def distance_to_home(vehicle,home_coords):
         distance = R * c
         return distance #in meters
 
-def geo_distance_components(lat1,lon1,lat2,lon2):
-    # Earth's radius in meters
-    R = 6378137
-
-    # Convert degrees to radians
-    lat1, lon1, lat2, lon2 = map(math.radians, [lat1, lon1, lat2, lon2])
-
-    # Calculate differences
-    delta_lat = lat2 - lat1
-    delta_lon = lon2 - lon1
-
-    # Normalize delta_lon to [-π, π]
-    delta_lon = (delta_lon + math.pi) % (2 * math.pi) - math.pi
-
-    # Debugging intermediate values
-    mean_lat = (lat1 + lat2) / 2
-    # North-South component (y): R * delta_lat
-    y = R * delta_lat
-
-    # East-West component (x): R * delta_lon * cos(mean_latitude)
-    x = R * delta_lon * math.cos(mean_lat)
-
-    return x,y
-
-
-def kalman_filter(prev_state, prev_cov, x_gps, y_gps, x_cam, y_cam):
-
-    #state transition model (constant velocity assumed)
-    A=np.eye(4)
-    # Measurement model (Only measuring position)
-    H = np.array([[1, 0, 0, 0],  
-                  [0, 1, 0, 0]])  
-    Q = np.eye(4) * 0.02 #process noise
-    R_gps = np.eye(2) * 1.0  #GPS has more noise 
-    R_cam = np.eye(2) * 0.05 #camera noise
-    #Predict step
-    pred_state = np.dot(A, prev_state)
-    pred_cov = np.dot(np.dot(A, prev_cov), A.T) + Q 
-    # GPS update
-    z_gps = np.array([[x_gps], [y_gps]])  # Measurement
-    y_gps = z_gps - np.dot(H, pred_state)  # Residual
-    S_gps = np.dot(H, np.dot(pred_cov, H.T)) + R_gps  # Innovation covariance
-    K_gps = np.dot(np.dot(pred_cov, H.T), np.linalg.inv(S_gps))  # Kalman gain
-    updated_state = pred_state + np.dot(K_gps, y_gps)  # Updated state
-    updated_cov = np.dot((np.eye(4) - np.dot(K_gps, H)), pred_cov)  # Updated covariance
-        # Camera update
-    z_cam = np.array([[x_cam], [y_cam]])  
-    y_cam = z_cam - np.dot(H, updated_state)
-    S_cam = np.dot(H, np.dot(updated_cov, H.T)) + R_cam
-    K_cam = np.dot(np.dot(updated_cov, H.T), np.linalg.inv(S_cam))
-    updated_state = updated_state + np.dot(K_cam, y_cam)
-    updated_cov = np.dot((np.eye(4) - np.dot(K_cam, H)), updated_cov)
-
-    return updated_state, updated_cov
-
 def enable_data_stream(vehicle,stream_rate):
 
     vehicle.wait_heartbeat()
