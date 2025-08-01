@@ -1,4 +1,5 @@
 ###########DEPENDENCIES################
+# Tested with pymavlink and OpenCV 4.5.1 #(dronekit depricated)
 import time
 import math
 from pymavlink import mavutil
