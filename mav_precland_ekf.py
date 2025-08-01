@@ -386,4 +386,4 @@ while True:
     time.sleep(1)
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Waiting to acquire Landing Point...]")
 
-##################### END OF SCRIPT ############################
+####################### END OF SCRIPT ############################
