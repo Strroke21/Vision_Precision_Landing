@@ -264,9 +264,9 @@ def lander():
                 print("------------------------")
                 print("Vehicle now in LAND mode")
                 print("------------------------")
-                send_land_message(x_ang,y_ang,x_sum,y_sum)
+                send_land_message(x_ang,y_ang,x/100,y/100)
             else:
-                send_land_message(x_ang,y_ang,x_sum,y_sum)
+                send_land_message(x_ang,y_ang,x/100,y/100)
                 pass
 
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))
