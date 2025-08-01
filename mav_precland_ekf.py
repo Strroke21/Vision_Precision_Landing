@@ -292,14 +292,12 @@ def lander():
         notfound_count=notfound_count+1
 
 def home_location(vehicle):
-    while True:
-        msg=vehicle.recv_match(type='HOME_POSITION',blocking=False)
-        if msg is not None:
-            return [msg.latitude * 1e-7, msg.longitude * 1e-7,msg.altitude * 1e-3]
-        else:
-            print("setting first arm location as home location...")
-            return get_global_position(vehicle)[0], get_global_position(vehicle)[1]
-        
+    global home_coords
+    msg=vehicle.recv_match(type='HOME_POSITION',blocking=False)
+    if msg is not None:
+        home_coords = [msg.latitude * 1e-7, msg.longitude * 1e-7]  # lat, lon
+    return home_coords
+           
 def arm_status(vehicle):
     global arm_status_condition
     vehicle.recv_match(type='HEARTBEAT', blocking=False)
@@ -339,7 +337,6 @@ def main_lander():
             notfound_count = 0
             break
 
-
 def first_arm_loc_check():
     while True:
         arm_c = arm_status(vehicle)
@@ -359,17 +356,18 @@ set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
+set_parameter(vehicle,'PLND_XY_DIST_MAX', 5)
 
 #storing first arm location as home location
 first_arm_loc_check()
-home_coords = home_location(vehicle)
+home_coords = [get_global_position(vehicle)[0], get_global_position(vehicle)[1]]
 print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
 
 while True:
     ########### home location coordinates (Dynamic) ########
-
+    h_loc = home_location(vehicle)
     altitude = get_rangefinder_data(vehicle)
-    dist_to_home = distance_to_home(vehicle,home_coords)
+    dist_to_home = distance_to_home(vehicle,h_loc)
     mode = flightMode(vehicle)
     arm_c = arm_status(vehicle)
     if (mode=='RTL'):
