@@ -38,7 +38,7 @@ python3 calibrate.py  --mm 16 --width 640 --height 480
 # Running the program 
 ```
 cd Vision_Precision_Landing
-python3 precland_rtl_yaw.py
+python3 mav_precland_ekf.py #pymavlink version
 ```
 
 # Landing Target Protocol
