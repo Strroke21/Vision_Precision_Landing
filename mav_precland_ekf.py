@@ -12,7 +12,7 @@ from math import radians, cos, sin, sqrt, atan2
 fcu_addr = '/dev/ttyACM0'
 ##Aruco
 ids_to_find = [72,75,99]
-marker_sizes = [26,13,8] #cm
+marker_sizes = [40,20,8] #cm
 altitudes = [4,1.5]
 takeoff_height = 10
 lander_height = 15
