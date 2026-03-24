@@ -1,4 +1,4 @@
-# Vision Precision Landing using computer vision
+# Vision Precision Landing using OpenCV
 The vision precision landing and position alignment can be achieved using computer vision:
 
 - The camera distortion and camera matrix are calculated for picam v2. specify these file paths in the script.
