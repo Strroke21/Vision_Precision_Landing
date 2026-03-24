@@ -94,7 +94,7 @@ def condition_yaw(heading,relative=False):
 
 #################### Landing Target Function ##############  
   
-def send_land_message(x_ang,y_ang, pos_x, pos_y):
+def send_land_message(x_ang,y_ang):
     msg = vehicle.mav.landing_target_encode(
         0,
         0,
@@ -104,8 +104,6 @@ def send_land_message(x_ang,y_ang, pos_x, pos_y):
         0, #distance to marker (m)
         0, #size_x (rad)
         0, #size_y (rad)
-        pos_x, #position_x of target (m)
-        pos_y, #position_y of target (m)
         ) 
     vehicle.mav.send(msg)
 
@@ -264,9 +262,9 @@ def lander():
                 print("------------------------")
                 print("Vehicle now in LAND mode")
                 print("------------------------")
-                send_land_message(x_ang,y_ang,x/100,y/100)
+                send_land_message(x_ang,y_ang)
             else:
-                send_land_message(x_ang,y_ang,x/100,y/100)
+                send_land_message(x_ang,y_ang)
                 pass
 
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))

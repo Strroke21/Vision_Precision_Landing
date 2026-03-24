@@ -90,7 +90,7 @@ def condition_yaw(heading,relative=False):
 
 #################### Landing Target Function ##############  
   
-def send_land_message(x_ang,y_ang, pos_x, pos_y):
+def send_land_message(x_ang,y_ang):
     msg = vehicle.mav.landing_target_encode(
         0,
         0,
@@ -100,8 +100,6 @@ def send_land_message(x_ang,y_ang, pos_x, pos_y):
         0, #distance to marker (m)
         0, #size_x (rad)
         0, #size_y (rad)
-        pos_x, #position_x of target (m)
-        pos_y, #position_y of target (m)
         ) 
     vehicle.mav.send(msg)
 
@@ -223,7 +221,7 @@ def lander():
             #########################################################
                 
             if (z/100>=2):
-                send_land_message(x_ang,y_ang,x_sum,y_sum)
+                send_land_message(x_ang,y_ang)
                 print("PrecLand Active")
             else:
                 print("PrecLand Stopped")
