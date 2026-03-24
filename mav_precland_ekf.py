@@ -15,7 +15,7 @@ ids_to_find = [72,75,99]
 marker_sizes = [26,13,8] #cm
 altitudes = [4,1.5]
 takeoff_height = 10
-lander_height = 10
+lander_height = 15
 
 marker_scan_not_found = 0
 
