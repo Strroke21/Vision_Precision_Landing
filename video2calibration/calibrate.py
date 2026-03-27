@@ -24,7 +24,7 @@ if __name__ == '__main__':
     
     horizontal_res = 640
     vertical_res = 480
-    source = cv2.VideoCapture(0)
+    source = cv2.VideoCapture(8)
     source.set(cv2.CAP_PROP_FRAME_WIDTH,horizontal_res)
     source.set(cv2.CAP_PROP_FRAME_HEIGHT,vertical_res )
     # square_size = float(args.get('--square_size', 1.0))
@@ -91,24 +91,24 @@ if __name__ == '__main__':
             pickle.dump((w, h), fw)
         
 
-    print('\nPerforming calibration...')
+    # print('\nPerforming calibration...')
     rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.calibrateCamera(obj_points, img_points, (w, h), None, None)
+    print("flat lens calibration")
     print ("RMS:", rms)
     print ("camera matrix:\n", camera_matrix)
     print ("distortion coefficients: ", dist_coefs.ravel())
 
-    # # fisheye calibration
+    # # # fisheye calibration
     # rms, camera_matrix, dist_coefs, rvecs, tvecs = cv2.fisheye.calibrate(
     #     obj_points, img_points,
     #     (w, h), camera_matrix, np.array([0., 0., 0., 0.]),
     #     None, None,
     #     cv2.fisheye.CALIB_USE_INTRINSIC_GUESS, (3, 1, 1e-6))
-    # print "RMS:", rms
-    # print "camera matrix:\n", camera_matrix
-    # print "distortion coefficients: ", dist_coefs.ravel()
-
+    # print("fisheye lens calibration")
+    # print("RMS:", rms)
+    # print("camera matrix:\n", camera_matrix)
+    # print("distortion coefficients: ", dist_coefs.ravel())
     calibration = {'rms': rms, 'camera_matrix': camera_matrix.tolist(), 'dist_coefs': dist_coefs.tolist() }
-
     ##OUTPUT DIRECTORIES
     file1 = args.output_dir + "/cameraMatrix.txt"
     np.savetxt(file1,camera_matrix,delimiter=',')
