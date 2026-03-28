@@ -1,0 +1,143 @@
+import cv2
+from cv2 import aruco
+import numpy as np
+import time
+import sys
+import pyrealsense2 as rs
+#############################
+
+width=480
+height=640
+
+pipeline = rs.pipeline()
+config = rs.config()
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
+pipeline.start(config)
+
+output_file = 'output_video.mp4'
+fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+fps = 30.0
+frame_size = (width,height)
+out = cv2.VideoWriter(output_file,fourcc,fps,frame_size)
+
+viewVideo=True
+if len(sys.argv)>1:
+    viewVideo=sys.argv[1]
+    if viewVideo=='0' or viewVideo=='False' or viewVideo=='false':
+        viewVideo=False
+############ARUCO/CV2############
+id_to_find=72 
+marker_size= 26 #cm
+realWorldEfficiency=.7 ##Iterations/second are slower when the drone is flying. This accounts for that
+aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
+parameters = aruco.DetectorParameters() #linux
+
+calib_path="/home/deathstroke/Desktop/Vision_Precision_Landing/video2calibration/calibrationFiles/"
+cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
+cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
+#############################
+seconds=0
+if viewVideo==True:
+    seconds=1000000
+    print("Showing video feed if X11 enabled.")
+    print("Script will run until you exit.")
+    print("-------------------------------")
+    print("")
+else:
+    seconds=5
+counter=0
+counter=float(counter)
+st = time.time()
+start_time=time.time()
+
+while time.time()-start_time<seconds:
+
+    frames= pipeline.wait_for_frames()
+    frame = frames.get_color_frame()
+    frame = np.asanyarray(frame.get_data())
+    ct = time.time()
+#    frame = cv2.resize(frame,(width,height))
+    
+    frame_np = np.array(frame)
+    gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)
+        
+    cv2.imshow('Aruco Tracker',frame)
+        
+    if cv2.waitKey(1) & 0xFF == ord('Q'):
+        break
+    
+    ids=''
+    detector = aruco.ArucoDetector(aruco_dict, parameters)
+    corners, ids, rejected = detector.detectMarkers(image=gray_img)
+    if ids is not None:
+        counter+=1
+        print(f"detection per second: {counter/(ct-st)}")
+        print("Found these IDs in the frame:")
+        print(ids)
+    if ids is not None and ids[0] == id_to_find:
+        ret = aruco.estimatePoseSingleMarkers(corners,marker_size,cameraMatrix=cameraMatrix,distCoeffs=cameraDistortion)
+        rvec,tvec = ret[0][0,0,:], ret[1][0,0,:]
+        
+        ####### heading (yaw) #####
+        R, _ = cv2.Rodrigues(rvec)
+        yaw_rad = np.arctan2(R[1,0], R[0,0])
+        yaw_deg = (np.degrees(yaw_rad))
+        yaw = round((yaw_deg+360) %360,2)
+        
+        ########### Roll #########
+        roll_rad = np.arctan2(R[2,1], R[2,2])
+        roll_deg = (np.degrees(roll_rad))
+        roll = round((roll_deg+360) %360,2)
+        ##########################
+        
+        ########## Pitch #########
+        pitch_rad = np.arctan2(-R[2,0],np.sqrt(R[2,1]**2 + R[2,2]**2))
+        pitch_deg = (np.degrees(pitch_rad))
+        pitch = round((pitch_deg+360) %360,2)
+        ##########################
+        
+        
+        x="{:.2f}".format(tvec[0])
+        y="{:.2f}".format(tvec[1])
+        z="{:.2f}".format(tvec[2])
+        
+        marker_position="MARKER POSITION: x="+x+" y="+y+" z="+z
+        print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
+        print("")
+        if viewVideo==True:
+            aruco.drawDetectedMarkers(frame_np,corners)
+            #aruco.drawAxis(frame_np,cameraMatrix,cameraDistortion,rvec,tvec,10) #rpi debian 
+            text="{}".format(z)
+            frame_np = cv2.putText(frame_np,text,(5,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255,0,0),1)
+            cv2.imshow('Aruco Tracker',frame_np)
+            out.write(frame_np)
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+    else:
+        print(f"ARUCO: {id_to_find} NOT FOUND IN FRAME.")
+        print("")
+    counter=float(counter+1)
+out.release()
+
+if viewVideo==False:
+    frequency=realWorldEfficiency*(counter/seconds)
+    print("")
+    print("")
+    print("---------------------------")
+    print("Loop iterations per second:")
+    print(frequency)
+    print("---------------------------")
+
+    print("Performance Diagnosis:")
+    if frequency>10:
+        print("Performance is more than enough for great precision landing.")
+    elif frequency>5:
+        print("Performance likely still good enough for precision landing.")
+        print("This resolution likely maximizes the detection altitude of the marker.")
+    else:
+        print("Performance likely not good enough for precision landing.")
+        print("MAKE SURE YOU HAVE A HEAT SINK ON YOUR PI!!!")
+    print("---------------------------")
+cv2.destroyAllWindows()
+
+
