@@ -36,7 +36,7 @@ id_to_find=72
 marker_size= 26 #cm
 realWorldEfficiency=.7 ##Iterations/second are slower when the drone is flying. This accounts for that
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
-parameters = aruco.DetectorParameters() #linux
+parameters = aruco.DetectorParameters_create() #orin
 
 calib_path="/home/deathstroke/Desktop/Vision_Precision_Landing/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
