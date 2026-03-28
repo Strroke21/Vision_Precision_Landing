@@ -173,7 +173,6 @@ def lander():
         
     frames = pipeline.wait_for_frames()
     frame = frames.get_color_frame()
-    frame = cv2.resize(frame,(horizontal_res,vertical_res))
     frame_np = np.asanyarray(frame.get_data())
     gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)   #grey image conversion
     ids=''
