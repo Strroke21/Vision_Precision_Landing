@@ -35,7 +35,7 @@ pipeline.start(config)
 horizontal_fov = 96 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
 vertical_fov = 65 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
 
-calib_path="/home/flyx-3010/Precision_Landing/video2calibration/"
+calib_path="/home/flyx-3010/Vision_Precision_Landing/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
 ##
