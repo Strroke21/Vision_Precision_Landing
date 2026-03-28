@@ -9,11 +9,10 @@ from math import radians, cos, sin, sqrt, atan2
 import pyrealsense2 as rs
 
 #######VARIABLES####################
-fcu_addr = 'udp:127.0.0.1:14660'
+fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14660'
 ##Aruco
 id_to_find = 72
 marker_size = 30
-takeoff_height = 10
 lander_height = 20
 
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
@@ -29,10 +28,10 @@ vertical_res = 480
 # Configure depth and color streams
 pipeline = rs.pipeline()
 config = rs.config()
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 30)
+config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
 pipeline.start(config)
 
-horizontal_fov = 96 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
+horizontal_fov = 90 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
 vertical_fov = 65 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
 
 calib_path="/home/flyx-3010/Vision_Precision_Landing/video2calibration/calibrationFiles/"
