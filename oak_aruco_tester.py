@@ -74,8 +74,8 @@ with dai.Device(pipeline) as device:
             break
         
         ids=''
-        detector = aruco.ArucoDetector(aruco_dict, parameters)
-        corners, ids, rejected = detector.detectMarkers(image=gray_img)
+        #detector = aruco.ArucoDetector(aruco_dict, parameters)
+        corners, ids, rejected = aruco.detectMarkers(image=gray_img, dictionary=aruco_dict, parameters=parameters)
         if ids is not None:
             counter+=1
             print(f"detection per second: {counter/(ct-st)}")
