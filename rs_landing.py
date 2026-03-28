@@ -1,30 +1,23 @@
 #!/usr/bin/env python3
 
-import cv2
-import pyrealsense2 as rs
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
 import numpy as np
-import time
+import cv2
+from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
 
-# Configure depth and color streams
-pipeline = rs.pipeline()
-config = rs.config()
-config.enable_stream(rs.stream.depth, 640, 480, rs.format.z16, 30)
+MAX_DISTANCE = 10.0
 
-MAX_DISTANCE = 8.0
+hfov, vfov = 87.0, 58.0
+flatness, final_alt = 0.7, 0.5
+disparity_to_depth_scale = 0.0010000000474974513
+MAX_DISTANCE = 10.0
 
-hfov = 87 * (math.pi/180)
-vfov = 58 * (math.pi/180)
-
-offset_x = 0.3
-offset_y = 0.2
-
-fcu_addr = '/dev/ttyACM0' 
-min_diff_threshold = 0.2
-safe_land_min_alt = 2
+fcu_addr = 'tcp:127.0.0.1:5763' #'/dev/ttyACM0' 
 current_target = None
-stable_count = 0
 
 HYST_THRESHOLD = 3   # frames required to switch
 DIFF_MARGIN = 0.05   # meters improvement required
@@ -86,44 +79,54 @@ def get_rangefinder_data(vehicle):
         if msg is not None:
             rng_alt = msg.current_distance/100  # in meters
         return rng_alt
-    
-def compute_angle_scale_3x3(altitude, hfov, vfov,
+
+import math
+
+def compute_angle_scale_5x5(altitude, hfov, vfov,
                            base_gain=0.8,
                            min_scale=0.15,
                            max_scale=0.9,
                            smooth_factor=0.75,
                            prev_scale=[0.5]):
     """
-    Scale factor for 3x3 grid-based landing control.
+    Scale factor for 5x5 grid (using inner 3x3 cells).
 
-    Designed to:
-    - avoid aggressive jumps between large cells
-    - maintain smooth convergence
+    Adjustments:
+    - Smaller cells → less aggressive inherently
+    - Inner region → reduced effective FOV → compensate
     """
 
     if altitude <= 0:
         return min_scale
 
-    # --- Camera footprint (meters) ---
-    width_m  = 2 * altitude * math.tan(hfov / 2)
-    height_m = 2 * altitude * math.tan(vfov / 2)
+    # --- Convert FOV to radians (IMPORTANT if not already) ---
+    hfov_rad = math.radians(hfov)
+    vfov_rad = math.radians(vfov)
 
-    # --- Cell size (3x3 grid) ---
-    cell_w = width_m / 3.0
-    cell_h = height_m / 3.0
+    # --- Camera footprint ---
+    width_m  = 2 * altitude * math.tan(hfov_rad / 2)
+    height_m = 2 * altitude * math.tan(vfov_rad / 2)
 
-    # --- Effective motion scale ---
-    # Larger cells → reduce aggressiveness
-    avg_cell = (cell_w + cell_h) * 0.5
+    # --- 5x5 grid cell size ---
+    cell_w = width_m / 5.0
+    cell_h = height_m / 5.0
 
-    # Normalize (prevents explosion at high altitude)
-    scale = base_gain * avg_cell
+    avg_cell = 0.5 * (cell_w + cell_h)
+
+    # --- Compensation factor ---
+    # Inner usable grid = 3/5 of full → boost response
+    compensation = 5.0 / 3.0   # ≈1.67
+
+    # --- Base scaling ---
+    scale = base_gain * avg_cell * compensation
+
+    # Normalize (prevents blow-up)
     scale = scale / (1.0 + scale)
 
-    # --- Clamp ---
+    # Clamp
     scale = max(min_scale, min(scale, max_scale))
 
-    # --- Smooth (EMA) ---
+    # Smooth (EMA)
     scale = smooth_factor * prev_scale[0] + (1 - smooth_factor) * scale
     prev_scale[0] = scale
 
@@ -138,6 +141,13 @@ def enable_data_stream(vehicle,stream_rate):
     mavutil.mavlink.MAV_DATA_STREAM_ALL,
     stream_rate,1)
 
+def status_check(vehicle):
+    while True:
+        status = get_system_status(vehicle)
+        print("Vehicle State: ",status)
+        if ('Critical' in status) or ('Emergency' in status):
+            return status
+
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
@@ -147,111 +157,166 @@ set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filte
 set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
 # Start streaming
-pipeline.start(config)
 
-status = get_system_status(vehicle) #input("Enter the vehicle status: ")
+status = status_check(vehicle) #input("status:")
 print("Vehicle State: ",status)
 
 if ('Critical' in status) or ('Emergency' in status):
-    while True:
-        frames = pipeline.wait_for_frames()
-        depth_frame = frames.get_depth_frame()
-        if not depth_frame:
-            continue
+    
+    class SafeLander(Node):
+        def __init__(self):
+            super().__init__('safe_lander')
+            self.bridge = CvBridge()
 
-        frame = np.asanyarray(depth_frame.get_data())
+            self.subscription = self.create_subscription(
+                Image,
+                '/camera/camera/depth/image_rect_raw',
+                self.depth_callback,
+                10
+            )
 
-        mask = frame * depth_frame.get_units() <= MAX_DISTANCE
-        frame = frame * mask
+            self.last_valid_altitude = 2.0
 
-        height, width = frame.shape
-        third_height = height // 3
-        third_width = width // 3
+            # 🔹 Persistent selected cell (hysteresis)
+            self.current_cell = None  # (i, j)
+            self.current_diff = float('inf')
 
-        segments = [
-            frame[:third_height, :third_width], frame[:third_height, third_width:2*third_width], frame[:third_height, 2*third_width:],
-            frame[third_height:2*third_height, :third_width], frame[third_height:2*third_height, third_width:2*third_width], frame[third_height:2*third_height, 2*third_width:],
-            frame[2*third_height:, :third_width], frame[2*third_height:, third_width:2*third_width], frame[2*third_height:, 2*third_width:]
-        ]
+        def depth_callback(self, msg):
+            frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
 
-        min_diffs = []
-        for segment in segments:
-            min_disp = np.min(segment)
-            max_disp = np.max(segment)
-            min_diffs.append(max_disp - min_disp)
+            mask = (frame <= (MAX_DISTANCE * 1000)).astype(np.uint16)
+            frame = frame * mask
 
-        disparity_to_depth_scale = depth_frame.get_units()
-        differences_in_meters = [diff * disparity_to_depth_scale for diff in min_diffs]
+            height, width = frame.shape
 
-        # --- Original best candidate ---
-        min_diff = min(differences_in_meters)
-        min_diff_index = differences_in_meters.index(min_diff)
+            # ---- ALTITUDE ----
+            cx, cy = width // 2, height // 2
+            center_depth_m = frame[cy, cx] * disparity_to_depth_scale
 
-        # =========================
-        #  HYSTERESIS START
-        # =========================
-        if current_target is None:
-            current_target = min_diff_index
-        else:
-            current_diff = differences_in_meters[current_target]
-            new_diff = differences_in_meters[min_diff_index]
-
-            # Only switch if new cell is significantly better
-            if (new_diff + DIFF_MARGIN) < current_diff:
-                stable_count += 1
-
-                if stable_count >= HYST_THRESHOLD:
-                    current_target = min_diff_index
-                    stable_count = 0
+            if 0.1 < center_depth_m < MAX_DISTANCE:
+                altitude = center_depth_m
+                self.last_valid_altitude = altitude
             else:
-                stable_count = 0
+                altitude = self.last_valid_altitude
 
-        selected_index = current_target
-        selected_diff = differences_in_meters[selected_index]
-        # =========================
-        #  HYSTERESIS END
-        # =========================
+            self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
 
-        frame_colored = cv2.applyColorMap(cv2.convertScaleAbs(frame, alpha=0.03), cv2.COLORMAP_JET)
+            # ---- GRID (5x5, ignore edges) ----
+            grid_rows, grid_cols = 5, 5
+            cell_w, cell_h = width // grid_cols, height // grid_rows
 
-        cv2.line(frame_colored, (third_width, 0), (third_width, height), (255, 255, 255), 2)
-        cv2.line(frame_colored, (2*third_width, 0), (2*third_width, height), (255, 255, 255), 2)
-        cv2.line(frame_colored, (0, third_height), (width, third_height), (255, 255, 255), 2)
-        cv2.line(frame_colored, (0, 2*third_height), (width, 2*third_height), (255, 255, 255), 2)
+            differences = []
+            valid_indices = []
 
-        for i, diff in enumerate(differences_in_meters):
-            top_left_x = (i % 3) * third_width
-            top_left_y = (i // 3) * third_height
-            cv2.putText(frame_colored, f"{diff:.2f}m",
-                        (top_left_x + 5, top_left_y + 20),
-                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
+            for i in range(1, grid_rows - 1):
+                for j in range(1, grid_cols - 1):
+                    seg = frame[
+                        i * cell_h:(i + 1) * cell_h,
+                        j * cell_w:(j + 1) * cell_w
+                    ]
 
-        altitude = get_rangefinder_data(vehicle)
+                    seg = seg[seg > 0]
 
-        # ✅ Use selected_diff instead of min_diff
-        if (selected_diff <= min_diff_threshold) and (altitude >= safe_land_min_alt):
+                    if seg.size == 0:
+                        diff = float('inf')
+                    else:
+                        diff = np.max(seg) - np.min(seg)
 
-            top_left_x = (selected_index % 3) * third_width
-            top_left_y = (selected_index // 3) * third_height
-            bottom_right_x = top_left_x + third_width
-            bottom_right_y = top_left_y + third_height
+                    differences.append(diff * disparity_to_depth_scale)
+                    valid_indices.append((i, j))
 
-            cv2.rectangle(frame_colored,
-                        (top_left_x, top_left_y),
-                        (bottom_right_x, bottom_right_y),
-                        (0, 255, 0), 2)
+            # ---- FIND BEST CELL ----
+            min_diff = min(differences)
+            min_idx = differences.index(min_diff)
+            best_cell = valid_indices[min_idx]
 
-            x_avg = (top_left_x + bottom_right_x) * 0.5
-            y_avg = (top_left_y + bottom_right_y) * 0.5
+            # ---- HYSTERESIS LOGIC ----
+            if self.current_cell is None:
+                # First time selection
+                self.current_cell = best_cell
+                self.current_diff = min_diff
 
-            scale_factor = compute_angle_scale_3x3(altitude, hfov, vfov)
+            else:
+                # Find diff of current cell
+                if self.current_cell in valid_indices:
+                    idx = valid_indices.index(self.current_cell)
+                    self.current_diff = differences[idx]
+                else:
+                    self.current_diff = float('inf')
 
-            x_ang = (((x_avg - width * 0.5) * (hfov / width)) + offset_x) * scale_factor
-            y_ang = (((y_avg - height * 0.5) * (vfov / height)) + offset_y) * scale_factor
+                # 🔴 Switch ONLY if current becomes bad
+                if self.current_diff > flatness:
+                    self.current_cell = best_cell
+                    self.current_diff = min_diff
 
-            print(f"[HYST] idx:{selected_index} | x:{x_ang:.3f} y:{y_ang:.3f} | scale:{scale_factor:.3f} | alt:{altitude:.2f}")
+            grid_i, grid_j = self.current_cell
 
-            send_land_message(x_ang, y_ang)
+            # ---- VISUALIZATION ----
+            depth_norm = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+            frame_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
 
-        else:
-            print("[HYST] No stable safe landing spot yet...")
+            # Draw grid
+            for i in range(1, grid_cols):
+                cv2.line(frame_colored, (i * cell_w, 0), (i * cell_w, height), (255, 255, 255), 1)
+            for i in range(1, grid_rows):
+                cv2.line(frame_colored, (0, i * cell_h), (width, i * cell_h), (255, 255, 255), 1)
+
+            # Annotate
+            for idx, diff in enumerate(differences):
+                i, j = valid_indices[idx]
+                x, y = j * cell_w, i * cell_h
+                cv2.putText(frame_colored, f"{diff:.2f}",
+                            (x + 5, y + 20),
+                            cv2.FONT_HERSHEY_SIMPLEX,
+                            0.5,
+                            (255, 255, 255),
+                            1)
+
+            # ---- LANDING ----
+            if self.current_diff <= flatness and altitude >= final_alt:
+                scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
+                top_left_x = grid_j * cell_w
+                top_left_y = grid_i * cell_h
+                bottom_right_x = top_left_x + cell_w
+                bottom_right_y = top_left_y + cell_h
+
+                x_avg = (top_left_x + bottom_right_x) / 2
+                y_avg = (top_left_y + bottom_right_y) / 2
+
+                x_ang = (x_avg - width / 2) * (hfov / width)
+                y_ang = (y_avg - height / 2) * (vfov / height)
+
+                x_dist = altitude * np.tan(np.radians(-y_ang)) 
+                y_dist = altitude * np.tan(np.radians(x_ang)) 
+                # send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                self.get_logger().info(
+                    f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
+                )
+
+                if altitude <= final_alt:
+                    self.get_logger().info("Landing Final Altitude Reached")
+                    self.destroy_node()
+
+                # Draw selected cell
+                cv2.rectangle(
+                    frame_colored,
+                    (top_left_x, top_left_y),
+                    (bottom_right_x, bottom_right_y),
+                    (0, 255, 0),
+                    2
+                )
+
+            # cv2.imshow("Depth Grid", frame_colored)
+            # cv2.waitKey(1)
+
+
+    def main(args=None):
+        rclpy.init(args=args)
+        node = SafeLander()
+        rclpy.spin(node)
+        node.destroy_node()
+        rclpy.shutdown()
+
+
+    if __name__ == '__main__':
+        main()
