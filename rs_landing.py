@@ -215,10 +215,4 @@ if ('Critical' in status) or ('Emergency' in status):
             # send_land_message(0,0.5) #move to another location this should be respective of direction with no obstacles.
             print("No safe landing spot detected. Continuing search...")
 
-        # # Display the frame with grid and bounding box (if any)
-        # cv2.imshow("Disparity Grid", frame_colored)
-        # # time.sleep(2)
-
-        # if cv2.waitKey(1) == ord('q'):
-        #     break
 
