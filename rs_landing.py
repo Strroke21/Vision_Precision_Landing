@@ -16,7 +16,7 @@ flatness, final_alt = 0.7, 0.5
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 10.0
 
-fcu_addr = 'tcp:127.0.0.1:5763' #'/dev/ttyACM0' 
+fcu_addr = '/dev/ttyACM0' #'tcp:127.0.0.1:5763' 
 current_target = None
 
 HYST_THRESHOLD = 3   # frames required to switch
