@@ -80,8 +80,6 @@ def get_rangefinder_data(vehicle):
             rng_alt = msg.current_distance/100  # in meters
         return rng_alt
 
-import math
-
 def compute_angle_scale_5x5(altitude, hfov, vfov,
                            base_gain=0.8,
                            min_scale=0.15,
@@ -158,165 +156,164 @@ set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
 # Start streaming
 
-status = status_check(vehicle) #input("status:")
-print("Vehicle State: ",status)
+class SafeLander(Node):
+    def __init__(self):
+        super().__init__('safe_lander')
+        self.bridge = CvBridge()
 
-if ('Critical' in status) or ('Emergency' in status):
-    
-    class SafeLander(Node):
-        def __init__(self):
-            super().__init__('safe_lander')
-            self.bridge = CvBridge()
+        self.subscription = self.create_subscription(
+            Image,
+            '/camera/camera/depth/image_rect_raw',
+            self.depth_callback,
+            10
+        )
 
-            self.subscription = self.create_subscription(
-                Image,
-                '/camera/camera/depth/image_rect_raw',
-                self.depth_callback,
-                10
-            )
+        self.last_valid_altitude = 2.0
 
-            self.last_valid_altitude = 2.0
+        # 🔹 Persistent selected cell (hysteresis)
+        self.current_cell = None  # (i, j)
+        self.current_diff = float('inf')
 
-            # 🔹 Persistent selected cell (hysteresis)
-            self.current_cell = None  # (i, j)
-            self.current_diff = float('inf')
+    def depth_callback(self, msg):
+        frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
 
-        def depth_callback(self, msg):
-            frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
+        mask = (frame <= (MAX_DISTANCE * 1000)).astype(np.uint16)
+        frame = frame * mask
 
-            mask = (frame <= (MAX_DISTANCE * 1000)).astype(np.uint16)
-            frame = frame * mask
+        height, width = frame.shape
 
-            height, width = frame.shape
+        # ---- ALTITUDE ----
+        cx, cy = width // 2, height // 2
+        center_depth_m = frame[cy, cx] * disparity_to_depth_scale
 
-            # ---- ALTITUDE ----
-            cx, cy = width // 2, height // 2
-            center_depth_m = frame[cy, cx] * disparity_to_depth_scale
+        # if 0.1 < center_depth_m < MAX_DISTANCE:
+        #     altitude = center_depth_m
+        #     self.last_valid_altitude = altitude
+        # else:
+        #     altitude = self.last_valid_altitude
+        altitude = get_rangefinder_data(vehicle)
 
-            if 0.1 < center_depth_m < MAX_DISTANCE:
-                altitude = center_depth_m
-                self.last_valid_altitude = altitude
+        self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
+
+        # ---- GRID (5x5, ignore edges) ----
+        grid_rows, grid_cols = 5, 5
+        cell_w, cell_h = width // grid_cols, height // grid_rows
+
+        differences = []
+        valid_indices = []
+
+        for i in range(1, grid_rows - 1):
+            for j in range(1, grid_cols - 1):
+                seg = frame[
+                    i * cell_h:(i + 1) * cell_h,
+                    j * cell_w:(j + 1) * cell_w
+                ]
+
+                seg = seg[seg > 0]
+
+                if seg.size == 0:
+                    diff = float('inf')
+                else:
+                    diff = np.max(seg) - np.min(seg)
+
+                differences.append(diff * disparity_to_depth_scale)
+                valid_indices.append((i, j))
+
+        # ---- FIND BEST CELL ----
+        min_diff = min(differences)
+        min_idx = differences.index(min_diff)
+        best_cell = valid_indices[min_idx]
+
+        # ---- HYSTERESIS LOGIC ----
+        if self.current_cell is None:
+            # First time selection
+            self.current_cell = best_cell
+            self.current_diff = min_diff
+
+        else:
+            # Find diff of current cell
+            if self.current_cell in valid_indices:
+                idx = valid_indices.index(self.current_cell)
+                self.current_diff = differences[idx]
             else:
-                altitude = self.last_valid_altitude
+                self.current_diff = float('inf')
 
-            self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
-
-            # ---- GRID (5x5, ignore edges) ----
-            grid_rows, grid_cols = 5, 5
-            cell_w, cell_h = width // grid_cols, height // grid_rows
-
-            differences = []
-            valid_indices = []
-
-            for i in range(1, grid_rows - 1):
-                for j in range(1, grid_cols - 1):
-                    seg = frame[
-                        i * cell_h:(i + 1) * cell_h,
-                        j * cell_w:(j + 1) * cell_w
-                    ]
-
-                    seg = seg[seg > 0]
-
-                    if seg.size == 0:
-                        diff = float('inf')
-                    else:
-                        diff = np.max(seg) - np.min(seg)
-
-                    differences.append(diff * disparity_to_depth_scale)
-                    valid_indices.append((i, j))
-
-            # ---- FIND BEST CELL ----
-            min_diff = min(differences)
-            min_idx = differences.index(min_diff)
-            best_cell = valid_indices[min_idx]
-
-            # ---- HYSTERESIS LOGIC ----
-            if self.current_cell is None:
-                # First time selection
+            # 🔴 Switch ONLY if current becomes bad
+            if self.current_diff > flatness:
                 self.current_cell = best_cell
                 self.current_diff = min_diff
 
-            else:
-                # Find diff of current cell
-                if self.current_cell in valid_indices:
-                    idx = valid_indices.index(self.current_cell)
-                    self.current_diff = differences[idx]
-                else:
-                    self.current_diff = float('inf')
+        grid_i, grid_j = self.current_cell
 
-                # 🔴 Switch ONLY if current becomes bad
-                if self.current_diff > flatness:
-                    self.current_cell = best_cell
-                    self.current_diff = min_diff
+        # ---- VISUALIZATION ----
+        depth_norm = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
+        frame_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
 
-            grid_i, grid_j = self.current_cell
+        # Draw grid
+        for i in range(1, grid_cols):
+            cv2.line(frame_colored, (i * cell_w, 0), (i * cell_w, height), (255, 255, 255), 1)
+        for i in range(1, grid_rows):
+            cv2.line(frame_colored, (0, i * cell_h), (width, i * cell_h), (255, 255, 255), 1)
 
-            # ---- VISUALIZATION ----
-            depth_norm = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX, dtype=cv2.CV_8U)
-            frame_colored = cv2.applyColorMap(depth_norm, cv2.COLORMAP_JET)
+        # Annotate
+        for idx, diff in enumerate(differences):
+            i, j = valid_indices[idx]
+            x, y = j * cell_w, i * cell_h
+            cv2.putText(frame_colored, f"{diff:.2f}",
+                        (x + 5, y + 20),
+                        cv2.FONT_HERSHEY_SIMPLEX,
+                        0.5,
+                        (255, 255, 255),
+                        1)
 
-            # Draw grid
-            for i in range(1, grid_cols):
-                cv2.line(frame_colored, (i * cell_w, 0), (i * cell_w, height), (255, 255, 255), 1)
-            for i in range(1, grid_rows):
-                cv2.line(frame_colored, (0, i * cell_h), (width, i * cell_h), (255, 255, 255), 1)
+        # ---- LANDING ----
+        if self.current_diff <= flatness and altitude >= final_alt:
+            scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
+            top_left_x = grid_j * cell_w
+            top_left_y = grid_i * cell_h
+            bottom_right_x = top_left_x + cell_w
+            bottom_right_y = top_left_y + cell_h
 
-            # Annotate
-            for idx, diff in enumerate(differences):
-                i, j = valid_indices[idx]
-                x, y = j * cell_w, i * cell_h
-                cv2.putText(frame_colored, f"{diff:.2f}",
-                            (x + 5, y + 20),
-                            cv2.FONT_HERSHEY_SIMPLEX,
-                            0.5,
-                            (255, 255, 255),
-                            1)
+            x_avg = (top_left_x + bottom_right_x) / 2
+            y_avg = (top_left_y + bottom_right_y) / 2
 
-            # ---- LANDING ----
-            if self.current_diff <= flatness and altitude >= final_alt:
-                scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
-                top_left_x = grid_j * cell_w
-                top_left_y = grid_i * cell_h
-                bottom_right_x = top_left_x + cell_w
-                bottom_right_y = top_left_y + cell_h
+            x_ang = (x_avg - width / 2) * (hfov / width)
+            y_ang = (y_avg - height / 2) * (vfov / height)
 
-                x_avg = (top_left_x + bottom_right_x) / 2
-                y_avg = (top_left_y + bottom_right_y) / 2
+            x_dist = altitude * np.tan(np.radians(-y_ang)) 
+            y_dist = altitude * np.tan(np.radians(x_ang)) 
+            send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+            self.get_logger().info(
+                f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
+            )
 
-                x_ang = (x_avg - width / 2) * (hfov / width)
-                y_ang = (y_avg - height / 2) * (vfov / height)
+            if altitude <= final_alt:
+                self.get_logger().info("Landing Final Altitude Reached")
+                self.destroy_node()
 
-                x_dist = altitude * np.tan(np.radians(-y_ang)) 
-                y_dist = altitude * np.tan(np.radians(x_ang)) 
-                # send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                self.get_logger().info(
-                    f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
-                )
+            # Draw selected cell
+            cv2.rectangle(
+                frame_colored,
+                (top_left_x, top_left_y),
+                (bottom_right_x, bottom_right_y),
+                (0, 255, 0),
+                2
+            )
 
-                if altitude <= final_alt:
-                    self.get_logger().info("Landing Final Altitude Reached")
-                    self.destroy_node()
-
-                # Draw selected cell
-                cv2.rectangle(
-                    frame_colored,
-                    (top_left_x, top_left_y),
-                    (bottom_right_x, bottom_right_y),
-                    (0, 255, 0),
-                    2
-                )
-
-            # cv2.imshow("Depth Grid", frame_colored)
-            # cv2.waitKey(1)
+        # cv2.imshow("Depth Grid", frame_colored)
+        # cv2.waitKey(1)
 
 
     def main(args=None):
-        rclpy.init(args=args)
-        node = SafeLander()
-        rclpy.spin(node)
-        node.destroy_node()
-        rclpy.shutdown()
-
+        status = status_check(vehicle) #input("status:")
+        print("Vehicle State: ",status)
+        if ('Critical' in status) or ('Emergency' in status):
+            
+            rclpy.init(args=args)
+            node = SafeLander()
+            rclpy.spin(node)
+            node.destroy_node()
+            rclpy.shutdown()
 
     if __name__ == '__main__':
         main()
