@@ -330,7 +330,7 @@ image_sub = ros_node.create_subscription(
     Image,
     '/camera/camera/color/image_raw',
     image_callback,
-    10
+    1
 )
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer

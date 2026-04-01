@@ -165,7 +165,7 @@ class SafeLander(Node):
             Image,
             '/camera/camera/depth/image_rect_raw',
             self.depth_callback,
-            10
+            1
         )
 
         self.last_valid_altitude = 2.0
