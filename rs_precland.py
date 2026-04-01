@@ -7,6 +7,9 @@ import cv2.aruco as aruco
 import numpy as np
 from math import radians, cos, sin, sqrt, atan2
 import pyrealsense2 as rs
+import rclpy
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge
 
 #######VARIABLES####################
 fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14660'
@@ -19,17 +22,12 @@ aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
 arm_status_condition = False
 parameters = aruco.DetectorParameters_create()
+# parameters = aruco.DetectorParameters() #linux
 ##
 
 ##Camera
 horizontal_res = 640
 vertical_res = 480
-
-# Configure depth and color streams
-pipeline = rs.pipeline()
-config = rs.config()
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
-pipeline.start(config)
 
 horizontal_fov = 90 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
 vertical_fov = 65 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
@@ -51,6 +49,9 @@ manualArm=False ##If True, arming from RC controller, If False, arming from this
 rng_alt = 0
 prev_state = np.array([[0],[0],[0],[0]]) #initialisation state
 prev_cov = np.eye(4)*0.025 #initial covariance
+
+frame_np = None
+bridge = CvBridge()
 #########FUNCTIONS#################
 
 def connect(connection_string):
@@ -163,18 +164,24 @@ def enable_data_stream(vehicle,stream_rate):
     mavutil.mavlink.MAV_DATA_STREAM_ALL,
     stream_rate,1)
 
+def image_callback(msg):
+    global frame_np
+    frame_np = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+
 def lander():
-    global first_run,notfound_count,found_count,marker_size,start_time,prev_state,prev_cov
+    global first_run,notfound_count,found_count,marker_size,start_time,prev_state,prev_cov, frame_np
     if first_run==0:
         print("First run of lander!!")
         first_run=1
         start_time=time.time()
         
-    frames = pipeline.wait_for_frames()
-    frame = frames.get_color_frame()
-    frame_np = np.asanyarray(frame.get_data())
-    gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)   #grey image conversion
-    ids=''
+    rclpy.spin_once(ros_node, timeout_sec=0.01)
+
+    if frame_np is None:
+        return
+
+    gray_img = cv2.cvtColor(frame_np, cv2.COLOR_BGR2GRAY)
+
     corners, ids, rejected = aruco.detectMarkers(image=gray_img,dictionary=aruco_dict,parameters=parameters)
 
     try:
@@ -316,6 +323,15 @@ def first_arm_loc_check():
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
+rclpy.init()
+ros_node = rclpy.create_node('Precision_Landing')
+
+image_sub = ros_node.create_subscription(
+    Image,
+    '/camera/camera/color/image_raw',
+    image_callback,
+    10
+)
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
@@ -353,4 +369,3 @@ while True:
     print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Flight Mode]: {mode}")
 
 ##################### END OF SCRIPT ############################
-
