@@ -3,17 +3,19 @@ from cv2 import aruco
 import numpy as np
 import time
 import sys
-import pyrealsense2 as rs
+import rclpy
+from rclpy.node import Node
+from sensor_msgs.msg import Image
+from cv_bridge import CvBridge 
 #############################
 
-width=480
-height=640
-
-pipeline = rs.pipeline()
-config = rs.config()
-config.enable_stream(rs.stream.color, 640, 480, rs.format.bgr8, 60)
-pipeline.start(config)
-
+width = 640
+height = 480
+bridge = CvBridge()
+latency_sum = 0
+latency_count = 0
+global frame_np
+frame_np = None
 output_file = 'output_video.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
 fps = 30.0
@@ -27,7 +29,7 @@ if len(sys.argv)>1:
         viewVideo=False
 ############ARUCO/CV2############
 id_to_find=72 
-marker_size= 26 #cm
+marker_size= 30 #cm
 realWorldEfficiency=.7 ##Iterations/second are slower when the drone is flying. This accounts for that
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 parameters = aruco.DetectorParameters() #linux
@@ -44,24 +46,43 @@ if viewVideo==True:
     print("-------------------------------")
     print("")
 else:
-    seconds=5
+    seconds=300
 counter=0
 counter=float(counter)
 st = time.time()
 start_time=time.time()
 
+def avg_delay(latency):
+    global latency_sum, latency_count
+    latency_sum += latency
+    latency_count += 1
+    return latency_sum / latency_count
+
+def image_callback(msg):
+    global frame_np, topic_delay
+    frame_np = bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
+    topic_delay = time.time() - msg.header.stamp.sec - msg.header.stamp.nanosec * 1e-9
+
+rclpy.init()
+ros_node = rclpy.create_node('Aruco_Tester')
+
+image_sub = ros_node.create_subscription(
+    Image,
+    '/camera/camera/color/image_raw',
+    image_callback,
+    1)
+
 while time.time()-start_time<seconds:
 
-    frames= pipeline.wait_for_frames()
-    frame = frames.get_color_frame()
-    frame = np.asanyarray(frame.get_data())
+    rclpy.spin_once(ros_node, timeout_sec=0.01)
+
+    if frame_np is None:
+        continue
+
     ct = time.time()
-#    frame = cv2.resize(frame,(width,height))
-    
-    frame_np = np.array(frame)
     gray_img = cv2.cvtColor(frame_np,cv2.COLOR_BGR2GRAY)
         
-    cv2.imshow('Aruco Tracker',frame)
+    cv2.imshow('Aruco Tracker',frame_np)
         
     if cv2.waitKey(1) & 0xFF == ord('Q'):
         break
@@ -103,7 +124,10 @@ while time.time()-start_time<seconds:
         
         marker_position="MARKER POSITION: x="+x+" y="+y+" z="+z
         print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
-        print("")
+        latency = (time.time() - ct) + topic_delay
+        average_latency = avg_delay(latency)
+
+        print(f"Latency: {latency} seconds, Average Latency: {average_latency} seconds")
         if viewVideo==True:
             aruco.drawDetectedMarkers(frame_np,corners)
             #aruco.drawAxis(frame_np,cameraMatrix,cameraDistortion,rvec,tvec,10) #rpi debian 
