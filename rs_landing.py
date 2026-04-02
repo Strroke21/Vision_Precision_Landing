@@ -154,6 +154,7 @@ set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
+set_parameter(vehicle,'PLND_LAG',0.0519) #lag with ros2 and rsd455
 # Start streaming
 
 class SafeLander(Node):
@@ -182,15 +183,6 @@ class SafeLander(Node):
 
         height, width = frame.shape
 
-        # ---- ALTITUDE ----
-        cx, cy = width // 2, height // 2
-        center_depth_m = frame[cy, cx] * disparity_to_depth_scale
-
-        # if 0.1 < center_depth_m < MAX_DISTANCE:
-        #     altitude = center_depth_m
-        #     self.last_valid_altitude = altitude
-        # else:
-        #     altitude = self.last_valid_altitude
         altitude = get_rangefinder_data(vehicle)
 
         self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
