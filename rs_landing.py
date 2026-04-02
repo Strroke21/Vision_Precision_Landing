@@ -12,7 +12,7 @@ from pymavlink import mavutil
 MAX_DISTANCE = 10.0
 
 hfov, vfov = 87.0, 58.0
-flatness, final_alt = 0.2, 2
+flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 10.0
 
@@ -326,13 +326,12 @@ class SafeLander(Node):
                 self.get_logger().info("[Performing normal landing descent]")
                 send_land_message(0, 0)  
                 
-
         # cv2.imshow("Depth Grid", frame_colored)
         # cv2.waitKey(1)
 
-
     def main(args=None):
-        status = status_check(vehicle) #input("status:")
+        status = status_check(vehicle) 
+        #status = input("status:")
         print("Vehicle State: ",status)
         if ('Critical' in status) or ('Emergency' in status):
             
