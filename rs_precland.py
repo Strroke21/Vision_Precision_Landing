@@ -337,6 +337,7 @@ set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',40) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
+set_parameter(vehicle,'PLND_LAG',0.0519) #lag with ros2 and rsd455
 
 #storing first arm location as home location
 first_arm_loc_check()
