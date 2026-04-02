@@ -16,17 +16,10 @@ latency_sum = 0
 latency_count = 0
 global frame_np
 frame_np = None
-output_file = 'output_video.mp4'
-fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-fps = 30.0
-frame_size = (width,height)
-out = cv2.VideoWriter(output_file,fourcc,fps,frame_size)
-
+counter=0
+st = time.time()
+start_time=time.time()
 viewVideo=True
-if len(sys.argv)>1:
-    viewVideo=sys.argv[1]
-    if viewVideo=='0' or viewVideo=='False' or viewVideo=='false':
-        viewVideo=False
 ############ARUCO/CV2############
 id_to_find=72 
 marker_size= 30 #cm
@@ -38,19 +31,6 @@ calib_path="/home/deathstroke/Desktop/Vision_Precision_Landing/video2calibration
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
 #############################
-seconds=0
-if viewVideo==True:
-    seconds=1000000
-    print("Showing video feed if X11 enabled.")
-    print("Script will run until you exit.")
-    print("-------------------------------")
-    print("")
-else:
-    seconds=300
-counter=0
-counter=float(counter)
-st = time.time()
-start_time=time.time()
 
 def avg_delay(latency):
     global latency_sum, latency_count
@@ -72,7 +52,7 @@ image_sub = ros_node.create_subscription(
     image_callback,
     1)
 
-while time.time()-start_time<seconds:
+while True:
 
     rclpy.spin_once(ros_node, timeout_sec=0.01)
 
@@ -134,34 +114,11 @@ while time.time()-start_time<seconds:
             text="{}".format(z)
             frame_np = cv2.putText(frame_np,text,(5,20), cv2.FONT_HERSHEY_SIMPLEX, 0.5,(255,0,0),1)
             cv2.imshow('Aruco Tracker',frame_np)
-            out.write(frame_np)
             if cv2.waitKey(1) & 0xFF == ord('q'):
-                break
+                break        
+            
     else:
         print(f"ARUCO: {id_to_find} NOT FOUND IN FRAME.")
         print("")
-    counter=float(counter+1)
-out.release()
-
-if viewVideo==False:
-    frequency=realWorldEfficiency*(counter/seconds)
-    print("")
-    print("")
-    print("---------------------------")
-    print("Loop iterations per second:")
-    print(frequency)
-    print("---------------------------")
-
-    print("Performance Diagnosis:")
-    if frequency>10:
-        print("Performance is more than enough for great precision landing.")
-    elif frequency>5:
-        print("Performance likely still good enough for precision landing.")
-        print("This resolution likely maximizes the detection altitude of the marker.")
-    else:
-        print("Performance likely not good enough for precision landing.")
-        print("MAKE SURE YOU HAVE A HEAT SINK ON YOUR PI!!!")
-    print("---------------------------")
-cv2.destroyAllWindows()
 
 
