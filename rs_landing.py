@@ -20,7 +20,9 @@ fcu_addr = '/dev/ttyACM0' #'tcp:127.0.0.1:5763'
 current_target = None
 
 HYST_THRESHOLD = 3   # frames required to switch
-DIFF_MARGIN = 0.05   # meters improvement required
+DIFF_MARGIN = 0.02   # meters improvement required
+search_counter = 0
+safe_spot_radius = 2
 
 ###### functions #######
 
@@ -138,6 +140,13 @@ def enable_data_stream(vehicle,stream_rate):
     vehicle.target_component,
     mavutil.mavlink.MAV_DATA_STREAM_ALL,
     stream_rate,1)
+
+def VehicleMode(vehicle, mode):
+    modes = ["STABILIZE","ACRO","ALT_HOLD","AUTO","GUIDED","LOITER","RTL","CIRCLE","","LAND"]
+    mode_id = modes.index(mode) if mode in modes else 12
+    vehicle.mav.set_mode_send(vehicle.target_system,
+                              mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
+                              mode_id)
 
 def status_check(vehicle):
     while True:
@@ -291,6 +300,32 @@ class SafeLander(Node):
                 (0, 255, 0),
                 2
             )
+
+        elif self.current_diff > flatness and altitude >= final_alt:
+            self.get_logger().info(f"[No suitable landing zone found. Best diff: {self.current_diff:.2f} m]")
+            search_counter += 1
+            offset_ang = math.atan(safe_spot_radius/altitude)
+            print(f"offset angle: {math.degrees(offset_ang):.2f} degrees")
+            if search_counter == 10:
+                self.get_logger().info("[Search mode activated: moving right]")
+                send_land_message(0, offset_ang)  # Move right
+            
+            if search_counter == 20:
+                self.get_logger().info("[Search mode: moving back]")
+                send_land_message(-offset_ang, 0)  # Move back
+            
+            if search_counter == 30:
+                self.get_logger().info("[Search mode: moving left]")
+                send_land_message(0, -offset_ang)  # Move left
+            
+            if search_counter == 40:
+                self.get_logger().info("[Search mode: moving forward]")
+                send_land_message(offset_ang, 0)  # Move forward
+                
+            elif search_counter > 40:
+                self.get_logger().info("[Performing normal landing descent]")
+                send_land_message(0, 0)  
+                
 
         # cv2.imshow("Depth Grid", frame_colored)
         # cv2.waitKey(1)
