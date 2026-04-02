@@ -329,17 +329,17 @@ class SafeLander(Node):
         # cv2.imshow("Depth Grid", frame_colored)
         # cv2.waitKey(1)
 
-    def main(args=None):
-        status = status_check(vehicle) 
-        #status = input("status:")
-        print("Vehicle State: ",status)
-        if ('Critical' in status) or ('Emergency' in status):
-            
-            rclpy.init(args=args)
-            node = SafeLander()
-            rclpy.spin(node)
-            node.destroy_node()
-            rclpy.shutdown()
+def main(args=None):
+    status = status_check(vehicle) 
+    #status = input("status:")
+    print("Vehicle State: ",status)
+    if ('Critical' in status) or ('Emergency' in status):
+        
+        rclpy.init(args=args)
+        node = SafeLander()
+        rclpy.spin(node)
+        node.destroy_node()
+        rclpy.shutdown()
 
-    if __name__ == '__main__':
-        main()
+if __name__ == '__main__':
+    main()
