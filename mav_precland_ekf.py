@@ -354,7 +354,8 @@ set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
-set_parameter(vehicle,'PLND_XY_DIST_MAX', 5)
+set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
+set_parameter(vehicle,'PLND_LAG',0.0519) #TBD for picam v2
 
 #storing first arm location as home location
 first_arm_loc_check()
