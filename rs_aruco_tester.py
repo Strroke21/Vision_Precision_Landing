@@ -14,6 +14,8 @@ height = 480
 bridge = CvBridge()
 latency_sum = 0
 latency_count = 0
+latency_min = float('inf')
+latency_max = float('-inf')
 global frame_np
 frame_np = None
 counter=0
@@ -33,10 +35,22 @@ cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=','
 #############################
 
 def avg_delay(latency):
-    global latency_sum, latency_count
+    global latency_sum, latency_count, latency_min, latency_max
+
     latency_sum += latency
     latency_count += 1
-    return latency_sum / latency_count
+
+    # update min
+    if latency < latency_min:
+        latency_min = latency
+
+    # update max
+    if latency > latency_max:
+        latency_max = latency
+
+    avg = latency_sum / latency_count
+
+    return avg, latency_min, latency_max
 
 def image_callback(msg):
     global frame_np, topic_delay
@@ -105,9 +119,9 @@ while True:
         marker_position="MARKER POSITION: x="+x+" y="+y+" z="+z
         print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
         latency = (time.time() - ct) + topic_delay
-        average_latency = avg_delay(latency)
+        average_latency, latency_min, latency_max = avg_delay(latency)
 
-        print(f"Latency: {latency} seconds, Average Latency: {average_latency} seconds")
+        print(f"Latency: {latency} seconds, Average Latency: {average_latency} seconds , Min Latency: {latency_min} seconds, Max Latency: {latency_max} seconds")
         if viewVideo==True:
             aruco.drawDetectedMarkers(frame_np,corners)
             #aruco.drawAxis(frame_np,cameraMatrix,cameraDistortion,rvec,tvec,10) #rpi debian 
@@ -116,7 +130,7 @@ while True:
             cv2.imshow('Aruco Tracker',frame_np)
             if cv2.waitKey(1) & 0xFF == ord('q'):
                 break        
-            
+
     else:
         print(f"ARUCO: {id_to_find} NOT FOUND IN FRAME.")
         print("")
