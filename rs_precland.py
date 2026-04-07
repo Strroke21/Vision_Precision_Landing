@@ -15,9 +15,10 @@ from cv_bridge import CvBridge
 fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14660'
 ##Aruco
 id_to_find = 72
-marker_size = 30
+marker_size = 40
 lander_height = 20
-
+final_alt = 2
+cm_to_m = 100
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
 arm_status_condition = False
@@ -228,9 +229,10 @@ def lander():
             
             x_ang = (x_avg - horizontal_res*.5)*(horizontal_fov/horizontal_res)
             y_ang = (y_avg - vertical_res*.5)*(vertical_fov/vertical_res)
+            z_m = z/cm_to_m
             #########################################################
                 
-            if (z/100>=2):
+            if (z_m>=final_alt):
                 send_land_message(x_ang,y_ang)
                 print("PrecLand Active")
             else:
