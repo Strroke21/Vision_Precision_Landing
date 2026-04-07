@@ -6,7 +6,9 @@ import sys
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import Image
+from std_msgs.msg import String
 from cv_bridge import CvBridge 
+
 #############################
 
 width = 640
@@ -24,7 +26,7 @@ start_time=time.time()
 viewVideo=True
 ############ARUCO/CV2############
 id_to_find=72 
-marker_size= 30 #cm
+marker_size= 40 #cm
 realWorldEfficiency=.7 ##Iterations/second are slower when the drone is flying. This accounts for that
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 parameters = aruco.DetectorParameters() #linux
@@ -65,6 +67,8 @@ image_sub = ros_node.create_subscription(
     '/camera/camera/color/image_raw',
     image_callback,
     1)
+
+aruco_data = ros_node.create_publisher(String, 'aruco_detection_state', 1)
 
 while True:
 
@@ -120,8 +124,11 @@ while True:
         print("Yaw:" +str(yaw)+ " Roll:" +str(roll)+ " Pitch:"+str(pitch), marker_position)
         latency = (time.time() - ct) + topic_delay
         average_latency, latency_min, latency_max = avg_delay(latency)
-
+        msg = String()
+        msg.data = "True"
+        aruco_data.publish(msg)
         print(f"Latency: {latency} seconds, Average Latency: {average_latency} seconds , Min Latency: {latency_min} seconds, Max Latency: {latency_max} seconds")
+        
         if viewVideo==True:
             aruco.drawDetectedMarkers(frame_np,corners)
             #aruco.drawAxis(frame_np,cameraMatrix,cameraDistortion,rvec,tvec,10) #rpi debian 
@@ -132,6 +139,9 @@ while True:
                 break        
 
     else:
+        msg = String()
+        msg.data = "False"
+        aruco_data.publish(msg)
         print(f"ARUCO: {id_to_find} NOT FOUND IN FRAME.")
         print("")
 

@@ -212,7 +212,7 @@ class SafeLander(Node):
         differences = []
         valid_indices = []
 
-        for i in range(1, grid_rows - 1):
+        """for i in range(1, grid_rows - 1):
             for j in range(1, grid_cols - 1):
                 seg = frame[
                     i * cell_h:(i + 1) * cell_h,
@@ -227,7 +227,32 @@ class SafeLander(Node):
                     diff = np.max(seg) - np.min(seg)
 
                 differences.append(diff * disparity_to_depth_scale)
-                valid_indices.append((i, j))
+                valid_indices.append((i, j))""" #3x3 grid version (ignore edges)
+        
+        for i in range(grid_rows):
+            for j in range(grid_cols):
+                seg = frame[
+                    i * cell_h:(i + 1) * cell_h,
+                    j * cell_w:(j + 1) * cell_w
+                ]
+
+                seg = seg[seg > 0]
+
+                if seg.size == 0:
+                    diff = float('inf')
+                else:
+                    diff = np.max(seg) - np.min(seg)
+
+                scaled_diff = diff * disparity_to_depth_scale
+
+                # Priority weighting (central 3x3 preferred)
+                if 1 <= i <= 3 and 1 <= j <= 3:
+                    weight = 1.0   # central cells (no penalty)
+                else:
+                    weight = 1.5   # outer cells penalized
+
+                differences.append(scaled_diff * weight)
+                valid_indices.append((i, j)) #5x5 grid version with edge penalty
 
         # ---- FIND BEST CELL ----
         min_diff = min(differences)
