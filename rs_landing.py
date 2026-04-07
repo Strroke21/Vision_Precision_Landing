@@ -352,11 +352,7 @@ class SafeLander(Node):
                 self.get_logger().info("[Search mode: moving left]")
                 send_land_message(0, -offset_ang)  # Move left
             
-            if self.search_counter == 40:
-                self.get_logger().info("[Search mode: moving forward]")
-                send_land_message(offset_ang, 0)  # Move forward
-                
-            elif self.search_counter > 40:
+            elif self.search_counter > 30:
                 self.get_logger().info("[Performing normal landing descent]")
                 send_land_message(0, 0)  
                 
