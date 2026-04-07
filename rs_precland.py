@@ -332,6 +332,7 @@ image_sub = ros_node.create_subscription(
     image_callback,
     1
 )
+
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
