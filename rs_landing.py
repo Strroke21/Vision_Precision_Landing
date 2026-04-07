@@ -8,6 +8,7 @@ import cv2
 from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
+from std_msgs.msg import String
 
 MAX_DISTANCE = 10.0
 
@@ -21,7 +22,6 @@ current_target = None
 
 HYST_THRESHOLD = 3   # frames required to switch
 DIFF_MARGIN = 0.02   # meters improvement required
-search_counter = 0
 safe_spot_radius = 2
 
 ###### functions #######
@@ -161,7 +161,7 @@ enable_data_stream(vehicle,stream_rate=200)
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
-set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
+set_parameter(vehicle,'LAND_SPEED',40) ##Descent speed of 40cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
 set_parameter(vehicle,'PLND_LAG',0.0519) #lag with ros2 and rsd455
 # Start streaming
@@ -178,11 +178,20 @@ class SafeLander(Node):
             1
         )
 
-        self.last_valid_altitude = 2.0
-
+        self.aruco_state_subscription = self.create_subscription(
+            String,'/aruco_detection_state',
+            self.aruco_state_callback,1)
+        
         # 🔹 Persistent selected cell (hysteresis)
         self.current_cell = None  # (i, j)
         self.current_diff = float('inf')
+        self.counter = 0
+        self.search_counter = 0
+
+    def aruco_state_callback(self, msg):
+        if msg.data == "True":
+            self.counter+=1
+            self.get_logger().info(f"Aruco Precision Landing Priority. Aborting safe landing")
 
     def depth_callback(self, msg):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
@@ -268,7 +277,7 @@ class SafeLander(Node):
                         1)
 
         # ---- LANDING ----
-        if self.current_diff <= flatness and altitude >= final_alt:
+        if (self.current_diff <= flatness) and (altitude >= final_alt) and (self.counter == 0):
             scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
             top_left_x = grid_j * cell_w
             top_left_y = grid_i * cell_h
@@ -301,28 +310,28 @@ class SafeLander(Node):
                 2
             )
 
-        elif self.current_diff > flatness and altitude >= final_alt:
+        elif (self.current_diff > flatness) and (altitude >= final_alt) and ((self.counter == 0)):
             self.get_logger().info(f"[No suitable landing zone found. Best diff: {self.current_diff:.2f} m]")
-            search_counter += 1
+            self.search_counter += 1
             offset_ang = math.atan(safe_spot_radius/altitude)
             print(f"offset angle: {math.degrees(offset_ang):.2f} degrees")
-            if search_counter == 10:
+            if self.search_counter == 10:
                 self.get_logger().info("[Search mode activated: moving right]")
                 send_land_message(0, offset_ang)  # Move right
             
-            if search_counter == 20:
+            if self.search_counter == 20:
                 self.get_logger().info("[Search mode: moving back]")
                 send_land_message(-offset_ang, 0)  # Move back
             
-            if search_counter == 30:
+            if self.search_counter == 30:
                 self.get_logger().info("[Search mode: moving left]")
                 send_land_message(0, -offset_ang)  # Move left
             
-            if search_counter == 40:
+            if self.search_counter == 40:
                 self.get_logger().info("[Search mode: moving forward]")
                 send_land_message(offset_ang, 0)  # Move forward
                 
-            elif search_counter > 40:
+            elif self.search_counter > 40:
                 self.get_logger().info("[Performing normal landing descent]")
                 send_land_message(0, 0)  
                 

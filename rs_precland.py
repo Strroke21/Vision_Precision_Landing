@@ -10,6 +10,7 @@ import pyrealsense2 as rs
 import rclpy
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
+from std_msgs.msg import String
 
 #######VARIABLES####################
 fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14660'
@@ -242,8 +243,14 @@ def lander():
             print("FOUND COUNT: "+str(found_count)+" NOTFOUND COUNT: "+str(notfound_count))
             print(f" MARKER POSITION (cartesian): x={x:.2f} y={y:2f} z={z:.2f}")
             found_count = found_count+1
+            msg = String()
+            msg.data = "True"
+            aruco_data.publish(msg)
             
         else:
+            msg = String()
+            msg.data = "False"
+            aruco_data.publish(msg)
             notfound_count = notfound_count+1
             
     except Exception as e:
@@ -334,6 +341,7 @@ image_sub = ros_node.create_subscription(
     image_callback,
     1
 )
+aruco_data = ros_node.create_publisher(String, 'aruco_detection_state', 1)
 
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
@@ -358,7 +366,7 @@ while True:
         if (altitude <= lander_height) and (dist_to_home <= home_radius):
             VehicleMode(vehicle,'LAND')
             print("[Vehicle is now in LAND mode]")
-            time.sleep(1)
+            time.sleep(0.5)
             main_lander()
 
         else:
