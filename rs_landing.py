@@ -289,8 +289,8 @@ class SafeLander(Node):
             x_ang = (x_avg - width / 2) * (hfov / width)
             y_ang = (y_avg - height / 2) * (vfov / height)
 
-            x_dist = altitude * np.tan(np.radians(-y_ang)) 
-            y_dist = altitude * np.tan(np.radians(x_ang)) 
+            x_dist = altitude * np.tan(-y_ang) 
+            y_dist = altitude * np.tan(x_ang) 
 
             if abs(x_dist)<=safe_spot_radius and abs(y_dist)<=safe_spot_radius:
                 self.land_counter+=1

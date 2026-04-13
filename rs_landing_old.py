@@ -279,8 +279,8 @@ class SafeLander(Node):
             x_ang = (x_avg - width / 2) * (hfov / width)
             y_ang = (y_avg - height / 2) * (vfov / height)
 
-            x_dist = altitude * np.tan(np.radians(-y_ang)) 
-            y_dist = altitude * np.tan(np.radians(x_ang)) 
+            x_dist = altitude * np.tan(-y_ang) 
+            y_dist = altitude * np.tan(x_ang) 
             send_land_message(x_ang*scale_factor, y_ang*scale_factor)
             self.get_logger().info(
                 f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
