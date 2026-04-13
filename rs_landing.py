@@ -280,6 +280,7 @@ class SafeLander(Node):
         # ---- LANDING ----
         if (self.current_diff <= flatness) and (altitude >= final_alt) and (self.counter == 0):
             scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
+            self.land_counter+=1
             top_left_x = grid_j * cell_w
             top_left_y = grid_i * cell_h
             bottom_right_x = top_left_x + cell_w
@@ -293,14 +294,28 @@ class SafeLander(Node):
 
             x_dist = altitude * np.tan(np.radians(-y_ang)) 
             y_dist = altitude * np.tan(np.radians(x_ang)) 
-            send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-            self.get_logger().info(
-                f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
-            )
+            if self.land_counter==1:
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
 
-            if altitude <= final_alt:
+            elif self.land_counter==10:
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
+
+            elif self.land_counter==20:
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
+            
+            elif self.land_counter==30:
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
+
+            elif altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
                 self.destroy_node()
+
+            else:
+                send_land_message(0, 0)
 
             # Draw selected cell
             cv2.rectangle(
