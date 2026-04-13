@@ -315,8 +315,8 @@ class SafeLander(Node):
         # cv2.waitKey(1)
 
 def main(args=None):
-    status = status_check(vehicle) 
-    #status = input("status:")
+    #status = status_check(vehicle) 
+    status = input("status:")
     print("Vehicle State: ",status)
     if ('Critical' in status) or ('Emergency' in status):
         
