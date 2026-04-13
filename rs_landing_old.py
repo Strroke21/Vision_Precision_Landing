@@ -9,14 +9,12 @@ from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
 
-MAX_DISTANCE = 10.0
-
 hfov, vfov = 87.0, 58.0
 flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
-MAX_DISTANCE = 10.0
+MAX_DISTANCE = 20.0
 
-fcu_addr = '/dev/ttyACM0' #'tcp:127.0.0.1:5763' 
+fcu_addr = 'udp:127.0.0.1:14561' 
 current_target = None
 
 HYST_THRESHOLD = 5   # frames required to switch
