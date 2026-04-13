@@ -8,7 +8,6 @@ import cv2
 from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
-from std_msgs.msg import String
 
 MAX_DISTANCE = 10.0
 
@@ -21,8 +20,7 @@ fcu_addr = '/dev/ttyACM0' #'tcp:127.0.0.1:5763'
 current_target = None
 
 HYST_THRESHOLD = 5   # frames required to switch
-DIFF_MARGIN = 0.02   # meters improvement required
-safe_spot_radius = 2
+DIFF_MARGIN = 0.05   # meters improvement required
 
 ###### functions #######
 
@@ -52,7 +50,7 @@ def send_land_message(x_ang,y_ang):
 
 def get_system_status(vehicle):
     # Wait for a 'HEARTBEAT' message
-    message = vehicle.recv_match(type='HEARTBEAT', blocking=True, timeout=1)
+    message = vehicle.recv_match(type='HEARTBEAT', blocking=True, timeout=10)
 
     if message is None:
         raise TimeoutError("Did not receive HEARTBEAT message in time")
@@ -141,13 +139,6 @@ def enable_data_stream(vehicle,stream_rate):
     mavutil.mavlink.MAV_DATA_STREAM_ALL,
     stream_rate,1)
 
-def VehicleMode(vehicle, mode):
-    modes = ["STABILIZE","ACRO","ALT_HOLD","AUTO","GUIDED","LOITER","RTL","CIRCLE","","LAND"]
-    mode_id = modes.index(mode) if mode in modes else 12
-    vehicle.mav.set_mode_send(vehicle.target_system,
-                              mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,
-                              mode_id)
-
 def status_check(vehicle):
     while True:
         status = get_system_status(vehicle)
@@ -161,10 +152,10 @@ enable_data_stream(vehicle,stream_rate=200)
 set_parameter(vehicle,'PLND_ENABLED', 1)
 set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
-set_parameter(vehicle,'LAND_SPEED',40) ##Descent speed of 40cm/s
+set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
-set_parameter(vehicle,'PLND_LAG',0.0519) #lag with ros2 and rsd455
 # Start streaming
+
 
 class SafeLander(Node):
     def __init__(self):
@@ -178,21 +169,11 @@ class SafeLander(Node):
             1
         )
 
-        self.aruco_state_subscription = self.create_subscription(
-            String,'/aruco_detection_state',
-            self.aruco_state_callback,1)
-        
+        self.last_valid_altitude = 0.0
+
         # 🔹 Persistent selected cell (hysteresis)
         self.current_cell = None  # (i, j)
         self.current_diff = float('inf')
-        self.counter = 0
-        self.search_counter = 0
-        self.land_counter = 0
-
-    def aruco_state_callback(self, msg):
-        if msg.data == "True":
-            self.counter+=1
-            self.get_logger().info(f"Aruco Precision Landing Priority. Aborting safe landing")
 
     def depth_callback(self, msg):
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
@@ -202,6 +183,15 @@ class SafeLander(Node):
 
         height, width = frame.shape
 
+        # ---- ALTITUDE ----
+        cx, cy = width // 2, height // 2
+        #center_depth_m = frame[cy, cx] * disparity_to_depth_scale
+
+        """if 0.1 < center_depth_m < MAX_DISTANCE:
+            altitude = center_depth_m
+            self.last_valid_altitude = altitude
+        else:
+            altitude = self.last_valid_altitude"""
         altitude = get_rangefinder_data(vehicle)
 
         self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
@@ -228,7 +218,7 @@ class SafeLander(Node):
                     diff = np.max(seg) - np.min(seg)
 
                 differences.append(diff * disparity_to_depth_scale)
-                valid_indices.append((i, j)) #3x3 grid version (ignore edges)
+                valid_indices.append((i, j))
 
         # ---- FIND BEST CELL ----
         min_diff = min(differences)
@@ -278,9 +268,8 @@ class SafeLander(Node):
                         1)
 
         # ---- LANDING ----
-        if (self.current_diff <= flatness) and (altitude >= final_alt) and (self.counter == 0):
+        if self.current_diff <= flatness and altitude >= final_alt:
             scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
-            self.land_counter+=1
             top_left_x = grid_j * cell_w
             top_left_y = grid_i * cell_h
             bottom_right_x = top_left_x + cell_w
@@ -294,28 +283,14 @@ class SafeLander(Node):
 
             x_dist = altitude * np.tan(np.radians(-y_ang)) 
             y_dist = altitude * np.tan(np.radians(x_ang)) 
-            if self.land_counter==1:
-                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
+            send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+            self.get_logger().info(
+                f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
+            )
 
-            elif self.land_counter==10:
-                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
-
-            elif self.land_counter==20:
-                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
-            
-            elif self.land_counter==30:
-                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                self.get_logger().info(f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]")
-
-            elif altitude <= final_alt:
+            if altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
                 self.destroy_node()
-
-            else:
-                send_land_message(0, 0)
 
             # Draw selected cell
             cv2.rectangle(
@@ -325,21 +300,23 @@ class SafeLander(Node):
                 (0, 255, 0),
                 2
             )
-                
+
         # cv2.imshow("Depth Grid", frame_colored)
         # cv2.waitKey(1)
 
+
 def main(args=None):
-    status = status_check(vehicle) 
-    #status = input("status:")
+    #status = status_check(vehicle)
+    status = input("status:")
     print("Vehicle State: ",status)
+
     if ('Critical' in status) or ('Emergency' in status):
-        
         rclpy.init(args=args)
         node = SafeLander()
         rclpy.spin(node)
         node.destroy_node()
         rclpy.shutdown()
+
 
 if __name__ == '__main__':
     main()
