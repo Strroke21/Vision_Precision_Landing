@@ -11,7 +11,7 @@ from pymavlink import mavutil
 from std_msgs.msg import String
 
 hfov, vfov = np.radians(87.0), np.radians(58.0)
-flatness, final_alt = 0.2, 4
+flatness, final_alt = 0.3, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 20.0
 
