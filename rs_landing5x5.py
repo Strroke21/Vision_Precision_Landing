@@ -21,6 +21,7 @@ current_target = None
 HYST_THRESHOLD = 5   # frames required to switch
 DIFF_MARGIN = 0.02   # meters improvement required
 safe_spot_radius = 2
+arm_status_condition = False
 
 ###### functions #######
 
@@ -152,6 +153,16 @@ def status_check(vehicle):
         print("Vehicle State: ",status)
         if ('Critical' in status) or ('Emergency' in status):
             return status
+
+def arm_status(vehicle):
+    global arm_status_condition
+    vehicle.recv_match(type='HEARTBEAT', blocking=False)
+    armed = vehicle.motors_armed()
+    if armed==128:
+        arm_status_condition = True
+    elif armed==0:
+        arm_status_condition = False
+    return arm_status_condition
 
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
@@ -323,8 +334,9 @@ class SafeLander(Node):
         
         elif altitude <= final_alt:
             self.get_logger().info("Landing Final Altitude Reached")
-            self.destroy_node()
-
+            arm_state = arm_status(vehicle)
+            if arm_state==False:
+                self.get_logger().info("Landed Successfully. Shutting Safee Lander Node.")
                 
         # cv2.imshow("Depth Grid", frame_colored)
         # cv2.waitKey(1)
