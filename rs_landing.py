@@ -228,6 +228,26 @@ class SafeLander(Node):
                 differences.append(diff * disparity_to_depth_scale)
                 valid_indices.append((i, j)) #3x3 grid version (ignore edges)
 
+        """for i in range(grid_rows):       # include all rows
+            for j in range(grid_cols):   # include all cols
+
+                y1 = i * cell_h
+                y2 = (i + 1) * cell_h
+                x1 = j * cell_w
+                x2 = (j + 1) * cell_w
+
+                seg = frame[y1:y2, x1:x2]
+
+                seg = seg[seg > 0]  # remove invalid depth
+
+                if seg.size == 0:
+                    diff = float('inf')
+                else:
+                    diff = np.max(seg) - np.min(seg)
+
+                differences.append(diff * disparity_to_depth_scale)
+                valid_indices.append((i, j))  # now full 5x5 indices"""
+
         # ---- FIND BEST CELL ----
         min_diff = min(differences)
         min_idx = differences.index(min_diff)
