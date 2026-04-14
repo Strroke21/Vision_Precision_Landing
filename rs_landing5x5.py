@@ -211,13 +211,18 @@ class SafeLander(Node):
         differences = []
         valid_indices = []
 
-        for i in range(1, grid_rows - 1):
-            for j in range(1, grid_cols - 1):
-                seg = frame[
-                    i * cell_h:(i + 1) * cell_h,
-                    j * cell_w:(j + 1) * cell_w
-                ]
+        center_weight = 1.0
+        outer_weight = 0.4
 
+        for i in range(grid_rows):
+            for j in range(grid_cols):
+
+                y1 = i * cell_h
+                y2 = (i + 1) * cell_h
+                x1 = j * cell_w
+                x2 = (j + 1) * cell_w
+
+                seg = frame[y1:y2, x1:x2]
                 seg = seg[seg > 0]
 
                 if seg.size == 0:
@@ -225,8 +230,14 @@ class SafeLander(Node):
                 else:
                     diff = np.max(seg) - np.min(seg)
 
-                differences.append(diff * disparity_to_depth_scale)
-                valid_indices.append((i, j)) #3x3 grid version (ignore edges)
+                # define center region (for 5x5 → indices 1–3)
+                if 1 <= i <= 3 and 1 <= j <= 3:
+                    weight = center_weight
+                else:
+                    weight = outer_weight
+
+                differences.append(diff * disparity_to_depth_scale * weight)
+                valid_indices.append((i, j))
 
         # ---- FIND BEST CELL ----
         min_diff = min(differences)
@@ -296,10 +307,10 @@ class SafeLander(Node):
             self.get_logger().info(f"x_ang: {(x_ang):.4f} rad, y_ang: {(y_ang):.4f} rad")
 
             if (abs(x_dist)<=safe_spot_radius) and (abs(y_dist)<=safe_spot_radius):
-                self.land_counter+=1
+                """self.land_counter+=1
                 if self.land_counter==1:
-                    send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-                # send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                    send_land_message(x_ang*scale_factor, y_ang*scale_factor)"""
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
                     
             # Draw selected cell
             cv2.rectangle(
