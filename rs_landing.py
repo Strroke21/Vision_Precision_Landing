@@ -15,7 +15,7 @@ flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 20.0
 
-fcu_addr = 'udp:127.0.0.1:14560' 
+fcu_addr = 'udp:127.0.0.1:14561' 
 current_target = None
 
 HYST_THRESHOLD = 5   # frames required to switch
@@ -292,11 +292,15 @@ class SafeLander(Node):
             x_dist = altitude * np.tan(-y_ang) 
             y_dist = altitude * np.tan(x_ang) 
 
-            if abs(x_dist)<=safe_spot_radius and abs(y_dist)<=safe_spot_radius:
-                self.land_counter+=1
-                if self.land_counter==1:
-                    send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+            self.get_logger().info(f"[Landing target → x: {x_dist:.2f} m, y: {y_dist:.2f} m, scale: {scale_factor:.2f}]")
+            self.get_logger().info(f"x_ang: {(x_ang):.4f} rad, y_ang: {(y_ang):.4f} rad")
 
+            if abs(x_dist)<=safe_spot_radius and abs(y_dist)<=safe_spot_radius:
+                """self.land_counter+=1
+                if self.land_counter==1:
+                    send_land_message(x_ang*scale_factor, y_ang*scale_factor)"""
+                send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+                    
             # Draw selected cell
             cv2.rectangle(
                 frame_colored,
