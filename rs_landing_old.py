@@ -11,15 +11,12 @@ from pymavlink import mavutil
 import time
 
 hfov, vfov = np.radians(87.0), np.radians(58.0)
-flatness, final_alt = 0.3, 4
+flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 20.0
 
 fcu_addr = 'udp:127.0.0.1:14561' 
 current_target = None
-
-HYST_THRESHOLD = 5   # frames required to switch
-DIFF_MARGIN = 0.05   # meters improvement required
 
 ###### functions #######
 
