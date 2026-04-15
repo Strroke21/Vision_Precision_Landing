@@ -109,7 +109,7 @@ def compute_angle_scale_5x5(altitude, hfov, vfov,
 
     # --- Compensation factor ---
     # Inner usable grid = 5/5 of full → boost response
-    compensation = 5.0 / 5.0   # ≈1.67
+    compensation = 5.0 / 5.0  
 
     # --- Base scaling ---
     scale = base_gain * avg_cell * compensation
@@ -141,6 +141,14 @@ def status_check(vehicle):
         print("Vehicle State: ",status)
         if ('Critical' in status) or ('Emergency' in status):
             return status
+        
+def flightMode(vehicle):
+    while True:
+        vehicle.recv_match(type='HEARTBEAT', blocking=False)
+        # Wait for a 'HEARTBEAT' message
+        mode = vehicle.flightmode
+
+        return mode
 
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
@@ -193,7 +201,9 @@ class SafeLander(Node):
         else:
             altitude = self.last_valid_altitude
 
-        self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
+        mode = flightMode(vehicle)
+
+        self.get_logger().info(f"[Altitude: {altitude:.2f} m FlightMode: {mode}]")
 
         # ---- GRID (5x5, ignore edges) ----
         grid_rows, grid_cols = 5, 5
@@ -222,7 +232,7 @@ class SafeLander(Node):
                 if 1 <= i <= 3 and 1 <= j <= 3:
                     weight = 1.0   # central cells (no penalty)
                 else:
-                    weight = 1.2   # outer cells penalized
+                    weight = 1.1   # outer cells penalized
 
                 differences.append(scaled_diff * weight)
                 valid_indices.append((i, j))
@@ -282,7 +292,6 @@ class SafeLander(Node):
                         1)
 
         # ---- LANDING ----
-        mode = vehicle.flightmode
         if (self.current_diff <= flatness) and (altitude >= final_alt) and (mode == 'LAND'):
             scale_factor = compute_angle_scale_5x5(altitude, hfov, vfov)
             top_left_x = grid_j * cell_w
@@ -306,7 +315,7 @@ class SafeLander(Node):
             send_land_message(x_ang*scale_factor, y_ang*scale_factor)
             ct = time.time ()
             delay_s = ct - st
-            self.get_logger().info(f"Processing Time: {delay_s:.3f} seconds")
+            self.get_logger().info(f"Solver Time: {delay_s:.3f} seconds")
 
             if altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
@@ -321,7 +330,7 @@ class SafeLander(Node):
                 2
             )
             
-            
+
 def main(args=None):
     #status = status_check(vehicle)
     status = input("status:")
