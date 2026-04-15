@@ -320,7 +320,8 @@ class SafeLander(Node):
                 (0, 255, 0),
                 2
             )
-
+            
+            
 def main(args=None):
     #status = status_check(vehicle)
     status = input("status:")
@@ -332,7 +333,6 @@ def main(args=None):
         rclpy.spin(node)
         node.destroy_node()
         rclpy.shutdown()
-
 
 if __name__ == '__main__':
     main()
