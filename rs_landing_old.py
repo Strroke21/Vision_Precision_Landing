@@ -9,11 +9,14 @@ from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
 import time
+from std_msgs.msg import String
 
 hfov, vfov = np.radians(87.0), np.radians(58.0)
 flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 15.0
+max_alt = 9.0
+safe_land_radius = 2
 
 fcu_addr = 'udp:127.0.0.1:14561' 
 current_target = None
@@ -71,7 +74,7 @@ def get_system_status(vehicle):
 def get_rangefinder_data(vehicle):
     global rng_alt
     while True:
-        msg = vehicle.recv_match(type='DISTANCE_SENSOR', blocking=True)
+        msg = vehicle.recv_match(type='DISTANCE_SENSOR', blocking=False)
         if msg is not None:
             rng_alt = msg.current_distance/100  # in meters
         return rng_alt
@@ -150,6 +153,34 @@ def flightMode(vehicle):
 
         return mode
 
+def VehicleMode(vehicle,mode):
+
+    modes = ["STABILIZE", "ACRO", "ALT_HOLD", "AUTO", "GUIDED", "LOITER", "RTL", "CIRCLE","", "LAND"]
+    if mode in modes:
+        mode_id = modes.index(mode)
+    else:
+        mode_id = 12
+    ##### changing to guided mode #####
+    #mode_id = 0:STABILIZE, 1:ACRO, 2: ALT_HOLD, 3:AUTO, 4:GUIDED, 5:LOITER, 6:RTL, 7:CIRCLE, 9:LAND 12:None
+    vehicle.mav.set_mode_send(
+        vehicle.target_system,mavutil.mavlink.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED,mode_id)
+
+
+def send_position_setpoint(vehicle, pos_x, pos_y, pos_z,FRAME):
+
+    # Send MAVLink command to set position
+    vehicle.mav.set_position_target_local_ned_send(
+        0,                          # time_boot_ms (not used)
+        vehicle.target_system,       # target_system
+        vehicle.target_component,    # target_component
+        FRAME,  # frame
+        0b110111111000,        # type_mask (only for postion)
+        pos_x, pos_y, pos_z,   # position 
+        0, 0, 0,                 # velocity in m/s (not used)
+        0, 0, 0,                    # acceleration (not used)
+        0, 0                        # yaw, yaw_rate (not used)
+    )
+
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
@@ -173,6 +204,7 @@ class SafeLander(Node):
             self.depth_callback,
             10
         )
+        # self.aruco_subscription = self.create_subscription(String,'/aruco_detection_state',self.aruco_callback,10)
 
         self.last_valid_altitude = 2.0
 
@@ -181,6 +213,12 @@ class SafeLander(Node):
         self.current_diff = float('inf')
         self.bad_frame_count = 0
         self.hyst_threshold = 30   # frames
+        self.land_counter = 0
+        self.aruco_counter = 0
+
+    # def aruco_callback(self,msg):
+    #     if msg.data == "True":
+    #         self.aruco_counter += 1
 
     def depth_callback(self, msg):
         st = time.time()
@@ -194,12 +232,13 @@ class SafeLander(Node):
         # ---- ALTITUDE ----
         cx, cy = width // 2, height // 2
         center_depth_m = frame[cy, cx] * disparity_to_depth_scale
-
-        if 0.1 < center_depth_m < MAX_DISTANCE:
-            altitude = center_depth_m
-            self.last_valid_altitude = altitude
-        else:
-            altitude = self.last_valid_altitude
+        altitude = get_rangefinder_data(vehicle)
+        if altitude is None:
+            if 0.1 < center_depth_m < MAX_DISTANCE:
+                altitude = center_depth_m
+                self.last_valid_altitude = altitude
+            else:
+                altitude = self.last_valid_altitude
 
         mode = flightMode(vehicle)
 
@@ -292,7 +331,7 @@ class SafeLander(Node):
                         1)
 
         # ---- LANDING ----
-        if (self.current_diff <= flatness) and (altitude >= final_alt) and (mode == 'LAND'):
+        if (self.current_diff <= flatness) and (max_alt <= altitude >= final_alt):
             scale_factor = compute_angle_scale_5x5(altitude, hfov, vfov)
             top_left_x = grid_j * cell_w
             top_left_y = grid_i * cell_h
@@ -308,14 +347,26 @@ class SafeLander(Node):
             x_dist = altitude * np.tan(-y_ang)
             y_dist = altitude * np.tan(x_ang)
 
+            if (abs(x_dist))>=0.2 and (abs(y_dist))>=0.2: #only send command if the target is outside a 20cm radius to prevent jitter
+                if abs(x_dist) <= safe_land_radius and abs(y_dist) <= safe_land_radius:
+                    self.land_counter += 1
+
             self.get_logger().info(f"[Landing target → x: {x_dist:.2f}m., y: {y_dist:.2f}m., scale: {scale_factor:.2f}]")
             self.get_logger().info(f"[Selected Cell: ({grid_i}, {grid_j}), Flatness: {self.current_diff:.2f}]")
             self.get_logger().info(f"[X angle: {x_ang:.2f}rad, Y angle: {y_ang:.2f}rad, Mode: {mode}]")
             time.sleep(0.04) #25Hz
-            send_land_message(x_ang*scale_factor, y_ang*scale_factor)
+            # send_land_message(x_ang*scale_factor, y_ang*scale_factor)
             ct = time.time ()
             delay_s = ct - st
             self.get_logger().info(f"Solver Time: {delay_s:.3f} seconds")
+            if self.land_counter == 1:
+                VehicleMode(vehicle,"GUIDED")
+                self.get_logger().info("Entering GUIDED mode for landing...")
+                time.sleep(0.1)
+                send_position_setpoint(vehicle, x_dist, y_dist, -altitude, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED)
+                time.sleep(3)
+                VehicleMode(vehicle,"LAND")
+                self.get_logger().info("Landing initiated...")
 
             if altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
