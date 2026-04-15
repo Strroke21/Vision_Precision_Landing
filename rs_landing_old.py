@@ -8,6 +8,7 @@ import cv2
 from cv_bridge import CvBridge
 import math
 from pymavlink import mavutil
+import time
 
 hfov, vfov = np.radians(87.0), np.radians(58.0)
 flatness, final_alt = 0.3, 4
@@ -96,8 +97,8 @@ def compute_angle_scale_5x5(altitude, hfov, vfov,
         return min_scale
 
     # --- Convert FOV to radians (IMPORTANT if not already) ---
-    hfov_rad = math.radians(hfov)
-    vfov_rad = math.radians(vfov)
+    hfov_rad = hfov
+    vfov_rad = vfov
 
     # --- Camera footprint ---
     width_m  = 2 * altitude * math.tan(hfov_rad / 2)
@@ -152,6 +153,7 @@ set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',30) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
+set_parameter(vehicle,'PLND_LAG',0.042)
 # Start streaming
 
 
@@ -164,16 +166,19 @@ class SafeLander(Node):
             Image,
             '/camera/camera/depth/image_rect_raw',
             self.depth_callback,
-            1
+            10
         )
 
-        self.last_valid_altitude = 0.0
+        self.last_valid_altitude = 2.0
 
         # 🔹 Persistent selected cell (hysteresis)
         self.current_cell = None  # (i, j)
         self.current_diff = float('inf')
+        self.bad_frame_count = 0
+        self.hyst_threshold = 30   # frames
 
     def depth_callback(self, msg):
+        st = time.time()
         frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='16UC1')
 
         mask = (frame <= (MAX_DISTANCE * 1000)).astype(np.uint16)
@@ -183,14 +188,13 @@ class SafeLander(Node):
 
         # ---- ALTITUDE ----
         cx, cy = width // 2, height // 2
-        #center_depth_m = frame[cy, cx] * disparity_to_depth_scale
+        center_depth_m = frame[cy, cx] * disparity_to_depth_scale
 
-        """if 0.1 < center_depth_m < MAX_DISTANCE:
+        if 0.1 < center_depth_m < MAX_DISTANCE:
             altitude = center_depth_m
             self.last_valid_altitude = altitude
         else:
-            altitude = self.last_valid_altitude"""
-        altitude = get_rangefinder_data(vehicle)
+            altitude = self.last_valid_altitude
 
         self.get_logger().info(f"[Altitude: {altitude:.2f} m]")
 
@@ -201,8 +205,8 @@ class SafeLander(Node):
         differences = []
         valid_indices = []
 
-        for i in range(1, grid_rows - 1):
-            for j in range(1, grid_cols - 1):
+        for i in range(grid_rows):
+            for j in range(grid_cols):
                 seg = frame[
                     i * cell_h:(i + 1) * cell_h,
                     j * cell_w:(j + 1) * cell_w
@@ -215,7 +219,15 @@ class SafeLander(Node):
                 else:
                     diff = np.max(seg) - np.min(seg)
 
-                differences.append(diff * disparity_to_depth_scale)
+                scaled_diff = diff * disparity_to_depth_scale
+
+                # Priority weighting (central 3x3 preferred)
+                if 1 <= i <= 3 and 1 <= j <= 3:
+                    weight = 1.0   # central cells (no penalty)
+                else:
+                    weight = 1.2   # outer cells penalized
+
+                differences.append(scaled_diff * weight)
                 valid_indices.append((i, j))
 
         # ---- FIND BEST CELL ----
@@ -223,24 +235,31 @@ class SafeLander(Node):
         min_idx = differences.index(min_diff)
         best_cell = valid_indices[min_idx]
 
-        # ---- HYSTERESIS LOGIC ----
+        # ---- HYSTERESIS LOGIC (with frame persistence) ----
         if self.current_cell is None:
-            # First time selection
             self.current_cell = best_cell
             self.current_diff = min_diff
+            self.bad_frame_count = 0
 
         else:
-            # Find diff of current cell
+            # Update current cell diff
             if self.current_cell in valid_indices:
                 idx = valid_indices.index(self.current_cell)
                 self.current_diff = differences[idx]
             else:
                 self.current_diff = float('inf')
 
-            # Switch ONLY if current becomes bad
+            # Check if current cell is bad
             if self.current_diff > flatness:
+                self.bad_frame_count += 1
+            else:
+                self.bad_frame_count = 0  # reset if good again
+
+            # Switch only if bad for N frames
+            if self.bad_frame_count >= self.hyst_threshold:
                 self.current_cell = best_cell
                 self.current_diff = min_diff
+                self.bad_frame_count = 0  # reset after switching
 
         grid_i, grid_j = self.current_cell
 
@@ -266,8 +285,9 @@ class SafeLander(Node):
                         1)
 
         # ---- LANDING ----
-        if self.current_diff <= flatness and altitude >= final_alt:
-            scale_factor = compute_angle_scale_5x5(altitude, math.degrees(hfov), math.degrees(vfov))
+        mode = vehicle.flightmode
+        if (self.current_diff <= flatness) and (altitude >= final_alt) and (mode == 'LAND'):
+            scale_factor = compute_angle_scale_5x5(altitude, hfov, vfov)
             top_left_x = grid_j * cell_w
             top_left_y = grid_i * cell_h
             bottom_right_x = top_left_x + cell_w
@@ -279,12 +299,17 @@ class SafeLander(Node):
             x_ang = (x_avg - width / 2) * (hfov / width)
             y_ang = (y_avg - height / 2) * (vfov / height)
 
-            x_dist = altitude * np.tan(-y_ang) 
-            y_dist = altitude * np.tan(x_ang) 
+            x_dist = altitude * np.tan(-y_ang)
+            y_dist = altitude * np.tan(x_ang)
+
+            self.get_logger().info(f"[Landing target → x: {x_dist:.2f}m., y: {y_dist:.2f}m., scale: {scale_factor:.2f}]")
+            self.get_logger().info(f"[Selected Cell: ({grid_i}, {grid_j}), Flatness: {self.current_diff:.2f}]")
+            self.get_logger().info(f"[X angle: {x_ang:.2f}rad, Y angle: {y_ang:.2f}rad, Mode: {mode}]")
+            time.sleep(0.04) #25Hz
             send_land_message(x_ang*scale_factor, y_ang*scale_factor)
-            self.get_logger().info(
-                f"[Landing target → x: {x_dist:.2f}, y: {y_dist:.2f} scale: {scale_factor:.2f}]"
-            )
+            ct = time.time ()
+            delay_s = ct - st
+            self.get_logger().info(f"Processing Time: {delay_s:.3f} seconds")
 
             if altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
@@ -298,10 +323,6 @@ class SafeLander(Node):
                 (0, 255, 0),
                 2
             )
-
-        # cv2.imshow("Depth Grid", frame_colored)
-        # cv2.waitKey(1)
-
 
 def main(args=None):
     #status = status_check(vehicle)
