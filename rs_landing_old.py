@@ -108,8 +108,8 @@ def compute_angle_scale_5x5(altitude, hfov, vfov,
     avg_cell = 0.5 * (cell_w + cell_h)
 
     # --- Compensation factor ---
-    # Inner usable grid = 3/5 of full → boost response
-    compensation = 5.0 / 3.0   # ≈1.67
+    # Inner usable grid = 5/5 of full → boost response
+    compensation = 5.0 / 5.0   # ≈1.67
 
     # --- Base scaling ---
     scale = base_gain * avg_cell * compensation
