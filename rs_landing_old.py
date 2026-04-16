@@ -14,7 +14,7 @@ from std_msgs.msg import String
 hfov, vfov = np.radians(87.0), np.radians(58.0)
 flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
-MAX_DISTANCE = 15.0
+MAX_DISTANCE = 12.0
 max_alt = 10.0
 safe_land_radius = 2
 
@@ -376,9 +376,10 @@ class SafeLander(Node):
                         self.get_logger().info("Within 0.5m of target, initiating LAND mode")
                         time.sleep(1)
                         break
-
+                set_parameter(vehicle,'PLND_ENABLED', 0) #disable precision landing to prevent interference with manual land command
                 VehicleMode(vehicle,"LAND")
                 self.get_logger().info("Landing initiated...")
+
 
             if altitude <= final_alt:
                 self.get_logger().info("Landing Final Altitude Reached")
