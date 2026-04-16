@@ -353,6 +353,7 @@ class SafeLander(Node):
             if (abs(x_dist))>=0.2 and (abs(y_dist))>=0.2: #only send command if the target is outside a 20cm radius to prevent jitter
                 if abs(x_dist) <= safe_land_radius and abs(y_dist) <= safe_land_radius:
                     self.land_counter += 1
+                    self.get_logger().info(f"Landing at x: {x_dist:.2f} m, y: {y_dist:.2f} m")
 
             self.get_logger().info(f"[Landing target → x: {x_dist:.2f}m., y: {y_dist:.2f}m., scale: {scale_factor:.2f}]")
             self.get_logger().info(f"[Selected Cell: ({grid_i}, {grid_j}), Flatness: {self.current_diff:.2f}]")
