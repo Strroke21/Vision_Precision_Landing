@@ -362,6 +362,9 @@ while True:
     dist_to_home = distance_to_home(vehicle,h_loc)
     mode = flightMode(vehicle)
     arm_c = arm_status(vehicle)
+    msg = String()
+    msg.data = "False"
+    aruco_data.publish(msg)
     if (mode=='RTL'):
         if (altitude <= lander_height) and (dist_to_home <= home_radius):
             VehicleMode(vehicle,'LAND')
