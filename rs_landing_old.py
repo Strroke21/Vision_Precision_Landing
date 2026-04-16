@@ -15,7 +15,7 @@ hfov, vfov = np.radians(87.0), np.radians(58.0)
 flatness, final_alt = 0.2, 4
 disparity_to_depth_scale = 0.0010000000474974513
 MAX_DISTANCE = 15.0
-max_alt = 9.0
+max_alt = 10.0
 safe_land_radius = 2
 
 fcu_addr = 'udp:127.0.0.1:14561' 
