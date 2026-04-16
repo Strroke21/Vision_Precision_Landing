@@ -181,6 +181,9 @@ def send_position_setpoint(vehicle, pos_x, pos_y, pos_z,FRAME):
         0, 0                        # yaw, yaw_rate (not used)
     )
 
+def dist_to_target(x_dist, y_dist):
+    return math.sqrt(x_dist**2 + y_dist**2)
+
 vehicle = connect(fcu_addr)
 enable_data_stream(vehicle,stream_rate=200)
     ##SETUP PARAMETERS TO ENABLE PRECISION LANDING
@@ -364,7 +367,15 @@ class SafeLander(Node):
                 self.get_logger().info("Entering GUIDED mode for landing...")
                 time.sleep(0.1)
                 send_position_setpoint(vehicle, x_dist, y_dist, -altitude, mavutil.mavlink.MAV_FRAME_BODY_OFFSET_NED)
-                time.sleep(3)
+                # time.sleep(3)
+                while True:
+                    dist = dist_to_target(x_dist, y_dist)
+                    self.get_logger().info(f"Distance to target: {dist:.2f} m")
+                    if dist <= 0.5:  
+                        self.get_logger().info("Within 0.5m of target, initiating LAND mode")
+                        time.sleep(1)
+                        break
+
                 VehicleMode(vehicle,"LAND")
                 self.get_logger().info("Landing initiated...")
 
