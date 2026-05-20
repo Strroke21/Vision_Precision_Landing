@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<package format="3">
+
+  <name>aruco_mavsdk</name>
+  <version>0.0.0</version>
+
+  <description>
+    ROS2 ArUco landing node with MAVSDK integration
+  </description>
+
+  <maintainer email="user@todo.todo">
+    user
+  </maintainer>
+
+  <license>Apache-2.0</license>
+
+  <!-- Build Tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- ROS2 Dependencies -->
+  <depend>rclcpp</depend>
+  <depend>sensor_msgs</depend>
+  <depend>cv_bridge</depend>
+  <depend>image_transport</depend>
+
+  <!-- Export -->
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+
+</package>
