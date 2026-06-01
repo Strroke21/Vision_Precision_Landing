@@ -31,9 +31,16 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, vertical_res)
 horizontal_fov = 47.8 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
 vertical_fov = 36.8 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
 
-calib_path="/home/flyx-3010/Precision_Landing/video2calibration/"
-cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
-cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
+# calib_path="/home/flyx-3010/Precision_Landing/video2calibration/"
+# cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
+# cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
+
+cameraMatrix = np.array([[1.11566446e+03, 0.00000000e+00, 2.83173405e+02],
+                        [0.00000000e+00, 1.09675922e+03, 2.63276316e+02],
+                        [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+
+cameraDistortion = np.array([-1.03854256e-01,  1.82737214e+01, 1.18521341e-02, -1.35474190e-02, -2.48315901e+02])
+
 ##
 home_radius = 10
 ##Counters and script triggers
@@ -221,7 +228,7 @@ def lander():
             #########################################################
                 
             if (z/100>=2):
-                send_land_message(x_ang,y_ang)
+                send_land_message(-x_ang,-y_ang) #for 90 degree rotation of camera
                 print("PrecLand Active")
             else:
                 print("PrecLand Stopped")
@@ -318,37 +325,14 @@ set_parameter(vehicle,'PLND_TYPE',1) ##1 for companion computer
 set_parameter(vehicle,'PLND_EST_TYPE', 0) # 0 for raw sensor, 1 for kalman filter pos estimation
 set_parameter(vehicle,'LAND_SPEED',40) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
-set_parameter(vehicle,'PLND_LAG',0.0519) #yet to determined
+set_parameter(vehicle,'PLND_LAG',0.0298) #plnd lag with brio 100 camera is 29.8ms
 
 #storing first arm location as home location
-first_arm_loc_check()
-home_coords = [get_global_position(vehicle)[0], get_global_position(vehicle)[1]]
-print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
+# first_arm_loc_check()
+# home_coords = [get_global_position(vehicle)[0], get_global_position(vehicle)[1]]
+# print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
 
 while True:
-    ########### home location coordinates (Dynamic) ########
-    h_loc = home_location(vehicle)
-    altitude = get_rangefinder_data(vehicle)
-    dist_to_home = distance_to_home(vehicle,h_loc)
-    mode = flightMode(vehicle)
-    arm_c = arm_status(vehicle)
-    if (mode=='RTL'):
-        if (altitude <= lander_height) and (dist_to_home <= home_radius):
-            VehicleMode(vehicle,'LAND')
-            print("[Vehicle is now in LAND mode]")
-            time.sleep(1)
-            main_lander()
-
-        else:
-            print("[Waiting to reach home location for landing...]")
-
-    elif (mode=='LAND' and arm_c==True):
-        main_lander()
-    
-    elif (mode=='AUTO') and (altitude<=lander_height):
-        main_lander()
-    
-    print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Flight Mode]: {mode}")
-
+    lander()
 ##################### END OF SCRIPT ############################
 
