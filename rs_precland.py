@@ -5,7 +5,7 @@ from pymavlink import mavutil
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-from math import radians, cos, sin, sqrt, atan2
+from math import atan2
 import pyrealsense2 as rs
 import rclpy
 from sensor_msgs.msg import Image
@@ -13,41 +13,30 @@ from cv_bridge import CvBridge
 from std_msgs.msg import String
 
 #######VARIABLES####################
-fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14660'
+fcu_addr = '/dev/ttyACM0' #'udp:127.0.0.1:14560'
 ##Aruco
 id_to_find = 72
 marker_size = 40
-lander_height = 20
 final_alt = 2
 cm_to_m = 100
+cam_orient = 3 #1 for 0 deg downfacing, 2 for 90 deg yaw, 3 180 deg yaw, 4 for 270 deg yaw
 aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 
 arm_status_condition = False
 parameters = aruco.DetectorParameters_create()
 # parameters = aruco.DetectorParameters() #linux
 ##
-
-##Camera
-horizontal_res = 640
-vertical_res = 480
-
-horizontal_fov = 90 * (math.pi / 180 ) ##Pi cam V1: 53.5 V2: 62.2
-vertical_fov = 65 * (math.pi / 180)    ##Pi cam V1: 41.41 V2: 48.8
-
 calib_path="/home/deathstroke/Vision_Precision_Landing/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
 ##
-home_radius = 10
 ##Counters and script triggers
 found_count=0
 notfound_count=0
-mode = 'STABILIZE'
 first_run=0 #Used to set initial time of function to determine FPS
 start_time=0
 end_time=0
 counter  = 0
-manualArm=False ##If True, arming from RC controller, If False, arming from this script.
 rng_alt = 0
 prev_state = np.array([[0],[0],[0],[0]]) #initialisation state
 prev_cov = np.eye(4)*0.025 #initial covariance
@@ -122,41 +111,6 @@ def get_rangefinder_data(vehicle):
             rng_alt = msg.current_distance/100  # in meters
         return rng_alt
 
-def get_global_position(vehicle):
-    while True:
-        msg = vehicle.recv_match(type='GLOBAL_POSITION_INT', blocking=True)
-        if msg is not None:
-            lat = msg.lat/1e7 # lat
-            lon = msg.lon/1e7 # lon
-            alt = msg.alt/1000  # alt
-            vx = msg.vx/100 #in m/s
-            vy= msg.vy/100 #in m/s
-            vz = msg.vz/100 #in m/s
-            relative_alt = msg.relative_alt/100 #in m
-            hdg = msg.hdg/100 #in deg
-            time_boot_ms = msg.time_boot_ms
-            return [lat,lon,alt,vx,vy,vz,relative_alt,hdg, time_boot_ms]
-
-def distance_to_home(vehicle,home_crds):
-    while True:
-        home_lat = home_crds[0]
-        home_lon = home_crds[1]
-        #home_alt=msg1.altitude * 1e-3
-
-        msg2 = get_global_position(vehicle)
-        
-        current_lat = msg2[0] # lat
-        current_lon = msg2[1] # lon
-        #current_alt = msg2[2] # alt
-        
-        R = 6371000  # Earth radius in meters
-        dlat = radians(current_lat - home_lat)
-        dlon = radians(current_lon - home_lon)
-        a = sin(dlat / 2)**2 + cos(radians(home_lat)) * cos(radians(current_lat)) * sin(dlon / 2)**2
-        c = 2 * atan2(sqrt(a), sqrt(1 - a))
-        distance = R * c
-        return distance #in meter
-
 def enable_data_stream(vehicle,stream_rate):
 
     vehicle.wait_heartbeat()
@@ -228,16 +182,19 @@ def lander():
             x_avg = x_sum*.25
             y_avg = y_sum*.25
             
-            x_ang = (x_avg - horizontal_res*.5)*(horizontal_fov/horizontal_res)
-            y_ang = (y_avg - vertical_res*.5)*(vertical_fov/vertical_res)
-            z_m = z/cm_to_m
+            x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
+            y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+
             #########################################################
                 
-            if (z_m>=final_alt):
-                send_land_message(x_ang,y_ang)
-                print("PrecLand Active")
-            else:
-                print("PrecLand Stopped")
+            if cam_orient == 1:
+                send_land_message(x_ang,y_ang) #for 0 degree rotation of camera
+            elif cam_orient == 2:
+                send_land_message(-y_ang,x_ang) #for 90 degree rotation of camera
+            elif cam_orient == 3:
+                send_land_message(-x_ang,-y_ang) #for 180 degree rotation of camera
+            elif cam_orient == 4:
+                send_land_message(y_ang,-x_ang) #for 270 degree rotation of camera
 
             print("X CENTER PIXEL: "+str(x_avg)+" Y CENTER PIXEL: "+str(y_avg))
             print("FOUND COUNT: "+str(found_count)+" NOTFOUND COUNT: "+str(notfound_count))
@@ -252,27 +209,12 @@ def lander():
             msg.data = "False"
             aruco_data.publish(msg)
             notfound_count = notfound_count+1
+            print("ARUCO: "+str(id_to_find)+" NOT FOUND IN FRAME.")
             
     except Exception as e:
         print('Target likely not found. Error: '+str(e))
         notfound_count=notfound_count+1
 
-def home_location(vehicle):
-    global home_coords
-    msg=vehicle.recv_match(type='HOME_POSITION',blocking=False)
-    if msg is not None:
-        home_coords = [msg.latitude * 1e-7, msg.longitude * 1e-7]  # lat, lon
-    return home_coords
-        
-def arm_status(vehicle):
-    global arm_status_condition
-    vehicle.recv_match(type='HEARTBEAT', blocking=False)
-    armed = vehicle.motors_armed()
-    if armed==128:
-        arm_status_condition = True
-    elif armed==0:
-        arm_status_condition = False
-    return arm_status_condition
 
 def flightMode(vehicle):
     global mode
@@ -280,51 +222,6 @@ def flightMode(vehicle):
     mode = vehicle.flightmode
 
     return mode
-
-def nav_land(vehicle):
-    vehicle.mav.command_long_send(
-        vehicle.target_system,
-        vehicle.target_component,
-        mavutil.mavlink.MAV_CMD_NAV_LAND,  # command
-        0,  # confirmation
-        0,  # param1: disable precision landing
-        0,  # param2: target altitude (not used)
-        0,  
-        0,  
-        0,  
-        0,  
-        0)
-   
-def main_lander():
-    global counter, found_count, notfound_count, start_time
-    while True:
-        arm_c = arm_status(vehicle)
-        if (arm_c==True):
-            lander()
-        elif (arm_c==False):
-            end_time = time.time() + 1 # to avoid division by zero
-            total_time = end_time - start_time
-            total_time = abs(int(total_time))
-            total_count = found_count + notfound_count
-            freq_lander = total_count / total_time
-            print("Total iterations: " + str(total_count))
-            print("Total seconds: " + str(total_time))
-            print("------------------")
-            print("Lander function had a frequency of: " + str(freq_lander))
-            print("------------------")
-            counter = 0
-            found_count = 0
-            notfound_count = 0
-            break
-
-def first_arm_loc_check():
-    while True:
-        arm_c = arm_status(vehicle)
-        if arm_c == True:
-            print("[Home Location Set.]")
-            break
-        else:
-            print("[Waiting for vehicle to be armed to set Home Location...]")
 
 ####################### MAIN DRONE PARAMETERS ###########################
 
@@ -350,37 +247,6 @@ set_parameter(vehicle,'LAND_SPEED',40) ##Descent speed of 30cm/s
 set_parameter(vehicle,'PLND_XY_DIST_MAX', 8)
 set_parameter(vehicle,'PLND_LAG',0.0519) #lag with ros2 and rsd455
 
-#storing first arm location as home location
-first_arm_loc_check()
-home_coords = [get_global_position(vehicle)[0], get_global_position(vehicle)[1]]
-print(f"[Home Location]: [lat:] {home_coords[0]:.7f} [lon:] {home_coords[1]:.7f}")
-
 while True:
-    ########### home location coordinates (Dynamic) ########
-    h_loc = home_location(vehicle)
-    altitude = get_rangefinder_data(vehicle)
-    dist_to_home = distance_to_home(vehicle,h_loc)
-    mode = flightMode(vehicle)
-    arm_c = arm_status(vehicle)
-    msg = String()
-    msg.data = "False"
-    aruco_data.publish(msg)
-    if (mode=='RTL'):
-        if (altitude <= lander_height) and (dist_to_home <= home_radius):
-            VehicleMode(vehicle,'LAND')
-            print("[Vehicle is now in LAND mode]")
-            time.sleep(0.5)
-            main_lander()
-
-        else:
-            print("[Waiting to reach home location for landing...]")
-
-    elif (mode=='LAND' and arm_c==True):
-        main_lander()
-    
-    elif (mode=='AUTO') and (altitude<=lander_height):
-        main_lander()
-    
-    print(f"[Distance to Home]: {dist_to_home:.2f} [m.] [Altitude]: {altitude:.2f} [m.] [Flight Mode]: {mode}")
-
+    lander()
 ##################### END OF SCRIPT ############################
