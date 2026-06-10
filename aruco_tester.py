@@ -1,3 +1,5 @@
+from math import atan2
+
 import cv2
 from cv2 import aruco
 import numpy as np
@@ -9,10 +11,16 @@ width=640
 height=480
 align_yaw=None
 #cap = WebcamVideoStream(src=0).start()
+h_fov = 32 * (np.pi / 180 ) 
+v_fov = 25 * (np.pi / 180)
 
 cap=cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH,width)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT,height)
+latency_sum = 0
+latency_count = 0
+latency_min = float('inf')
+latency_max = float('-inf')
 
 output_file = 'output_video.mp4'
 fourcc = cv2.VideoWriter_fourcc(*'mp4v')
@@ -41,11 +49,6 @@ cameraMatrix = np.array([[1.11566446e+03, 0.00000000e+00, 2.83173405e+02],
                         [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
 
 cameraDistortion = np.array([-1.03854256e-01,  1.82737214e+01, 1.18521341e-02, -1.35474190e-02, -2.48315901e+02])
-
-latency_sum = 0
-latency_count = 0
-latency_min = float('inf')
-latency_max = float('-inf')
 
 def avg_delay(latency):
     global latency_sum, latency_count, latency_min, latency_max
@@ -122,7 +125,24 @@ while time.time()-start_time<seconds:
         pitch_deg = (np.degrees(pitch_rad))
         pitch = round((pitch_deg+360) %360,2)
         ##########################
+        ############ x,y angle calculation in radians #########
+        y_sum = 0
+        x_sum = 0
         
+        x_sum = corners[0][0][0][0]+ corners[0][0][1][0]+ corners[0][0][2][0]+ corners[0][0][3][0]
+        y_sum = corners[0][0][0][1]+ corners[0][0][1][1]+ corners[0][0][2][1]+ corners[0][0][3][1]
+
+        x_avg = x_sum*.25
+        y_avg = y_sum*.25
+
+        x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
+        y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+        
+        x_ang1 = (x_avg - width*.5)*(h_fov/width)
+        y_ang1 = (y_avg - height*.5)*(v_fov/height)
+
+        print(f" approx x angle: {x_ang1} radians, approx y angle: {y_ang1} radians")
+        print(f" exact x angle: {x_ang} radians, exact y angle: {y_ang} radians")
         
         x="{:.2f}".format(tvec[0])
         y="{:.2f}".format(tvec[1])
