@@ -6,7 +6,7 @@ from pymavlink import mavutil
 import cv2
 import cv2.aruco as aruco
 import numpy as np
-from math import radians, cos, sin, sqrt, atan2
+from math import atan2
 
 #######VARIABLES####################
 fcu_addr = '/dev/ttyACM0'
@@ -18,7 +18,6 @@ aruco_dict = aruco.getPredefinedDictionary(aruco.DICT_ARUCO_ORIGINAL)
 cam_orient = 1 #1 for 0 deg downfacing, 2 for 90 deg yaw, 3 180 deg yaw, 4 for 270 deg yaw
 parameters = aruco.DetectorParameters_create()
 ##
-
 ##Camera
 horizontal_res = 640
 vertical_res = 480
