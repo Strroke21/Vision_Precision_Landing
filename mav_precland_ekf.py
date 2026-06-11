@@ -28,11 +28,12 @@ cap.set(cv2.CAP_PROP_FRAME_HEIGHT, vertical_res)
 calib_path="/home/deathstroke/Desktop/Vision_Precision_Landing/video2calibration/calibrationFiles/"
 cameraMatrix   = np.loadtxt(calib_path+'cameraMatrix.txt', delimiter=',')
 cameraDistortion   = np.loadtxt(calib_path+'cameraDistortion.txt', delimiter=',')
+h_fov,v_fov = 90 * (math.pi / 180), 65 * (math.pi / 180) #rs_d455
+width,height = 640,480
 ##
 ##Counters and script triggers
 found_count=0
 notfound_count=0
-mode = 'STABILIZE'
 first_run=0 #Used to set initial time of function to determine FPS
 start_time=0
 end_time=0
@@ -202,8 +203,10 @@ def lander():
             x_avg = x_sum*.25
             y_avg = y_sum*.25
             
-            x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
-            y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+            # x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
+            # y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+            x_ang = (x_avg - width*.5)*(h_fov/width)
+            y_ang = (y_avg - height*.5)*(v_fov/height)
             #########################################################
                 
             if cam_orient == 1:
