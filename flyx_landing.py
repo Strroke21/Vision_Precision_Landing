@@ -18,6 +18,8 @@ cam_orient = 1 #1 for 0 deg downfacing, 2 for 90 deg yaw, 3 180 deg yaw, 4 for 2
 
 arm_status_condition = False
 parameters = aruco.DetectorParameters_create()
+h_fov,v_fov = 47.8 * (math.pi / 180), 36.8 * (math.pi / 180)
+width,height = 640,480
 ##
 
 ##Camera
@@ -165,8 +167,12 @@ def lander():
             x_avg = x_sum*.25
             y_avg = y_sum*.25
 
-            x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
-            y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+            # x_ang = atan2((x_avg - cameraMatrix[0][2]), cameraMatrix[0][0])
+            # y_ang = atan2((y_avg - cameraMatrix[1][2]), cameraMatrix[1][1])
+
+            x_ang = (x_avg - width*.5)*(h_fov/width)
+            y_ang = (y_avg - height*.5)*(v_fov/height)
+
             #########################################################
                 
             if (z/100>=2):
