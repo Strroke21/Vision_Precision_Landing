@@ -36,7 +36,6 @@ cameraDistortion = np.array([-1.03854256e-01,  1.82737214e+01, 1.18521341e-02, -
 ##Counters and script triggers
 found_count=0
 notfound_count=0
-mode = 'STABILIZE'
 first_run=0 #Used to set initial time of function to determine FPS
 start_time=0
 end_time=0
