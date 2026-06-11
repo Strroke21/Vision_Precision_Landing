@@ -27,12 +27,11 @@ cap=cv2.VideoCapture(0)
 cap.set(cv2.CAP_PROP_FRAME_WIDTH, horizontal_res)
 cap.set(cv2.CAP_PROP_FRAME_HEIGHT, vertical_res)
 
-cameraMatrix = np.array([[1.11566446e+03, 0.00000000e+00, 2.83173405e+02],
-                        [0.00000000e+00, 1.09675922e+03, 2.63276316e+02],
-                        [0.00000000e+00, 0.00000000e+00, 1.00000000e+00]])
+cameraMatrix = np.array( [[971.02102704, 0,  279.83187699],
+                         [ 0, 943.87560225,  245.41222196],
+                        [  0, 0, 1]])
 
-cameraDistortion = np.array([-1.03854256e-01,  1.82737214e+01, 1.18521341e-02, -1.35474190e-02, -2.48315901e+02])
-
+cameraDistortion = np.array([5.09151830e-01, -1.21202782e+01, -4.66161487e-02, -1.79473657e-02, 1.29308119e+02])
 ##Counters and script triggers
 found_count=0
 notfound_count=0
