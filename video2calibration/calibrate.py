@@ -3,7 +3,6 @@ import numpy as np
 import cv2
 import os
 import argparse
-import yaml
 import pickle
 from glob import glob
 
@@ -21,12 +20,7 @@ if __name__ == '__main__':
     parser.add_argument('--mm',nargs="?",help='Size in mm of each square.',default=22,type=int)
 # parser.add_argument('--figure', help='saved visualization name', default=None)
     args = parser.parse_args()
-    
-    horizontal_res = 640
-    vertical_res = 480
-    source = cv2.VideoCapture(8)
-    source.set(cv2.CAP_PROP_FRAME_WIDTH,horizontal_res)
-    source.set(cv2.CAP_PROP_FRAME_HEIGHT,vertical_res )
+    source = cv2.VideoCapture(0)
     # square_size = float(args.get('--square_size', 1.0))
     
     pattern_size = (8, 5)
